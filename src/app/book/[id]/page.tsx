@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -24,13 +25,9 @@ import { Book, BookAnalysis } from "@/types/book";
 import { getBookCoverUrl, parseBookId, formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-interface BookDetailPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function BookDetailPage({ params }: BookDetailPageProps) {
-  const resolvedParams = use(params);
-  const bookId = decodeURIComponent(resolvedParams.id);
+export default function BookDetailPage() {
+  const params = useParams<{ id: string }>();
+  const bookId = decodeURIComponent(params.id || "");
 
   const [book, setBook] = useState<Book | null>(null);
   const [analysis, setAnalysis] = useState<BookAnalysis | null>(null);
