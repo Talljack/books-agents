@@ -1,11 +1,5 @@
 import { Annotation, StateGraph, END } from "@langchain/langgraph";
-import {
-  AgentState,
-  Book,
-  BookAnalysis,
-  AgentMessage,
-  SearchFilters,
-} from "@/types/book";
+import { AgentState, Book, BookAnalysis, AgentMessage, SearchFilters } from "@/types/book";
 import { searchNode } from "./nodes/search";
 import { analyzeNode } from "./nodes/analyze";
 
