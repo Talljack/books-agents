@@ -16,7 +16,7 @@ const openai = new OpenAI({
 
 // Default model based on provider
 const DEFAULT_MODEL = isOpenRouter
-  ? process.env.OPENROUTER_MODEL || "google/gemma-2-9b-it:free"
+  ? process.env.OPENROUTER_MODEL || "qwen/qwen3-235b-a22b:free"
   : "gpt-4o";
 
 export default openai;
