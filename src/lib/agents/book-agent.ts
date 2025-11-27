@@ -1,5 +1,11 @@
 import { Annotation, StateGraph, END } from "@langchain/langgraph";
-import { AgentState, Book, BookAnalysis, AgentMessage, SearchFilters } from "@/types/book";
+import {
+  AgentState,
+  Book,
+  BookAnalysis,
+  AgentMessage,
+  SearchFilters,
+} from "@/types/book";
 import { searchNode } from "./nodes/search";
 import { analyzeNode } from "./nodes/analyze";
 
@@ -8,12 +14,14 @@ const BookAgentState = Annotation.Root({
   query: Annotation<string>(),
   filters: Annotation<SearchFilters | undefined>(),
   books: Annotation<Book[]>({
-    default: () => [],
+    reducer: (_, y) => y ?? [],
+    default: () => [] as Book[],
   }),
   selectedBook: Annotation<Book | undefined>(),
   analysis: Annotation<BookAnalysis | undefined>(),
   messages: Annotation<AgentMessage[]>({
-    default: () => [],
+    reducer: (_, y) => y ?? [],
+    default: () => [] as AgentMessage[],
   }),
   error: Annotation<string | undefined>(),
   action: Annotation<"search" | "analyze" | "recommend">(),
