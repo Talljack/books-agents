@@ -1,8 +1,23 @@
 import OpenAI from "openai";
 
+// Support both OpenAI and OpenRouter
+const isOpenRouter = !!process.env.OPENROUTER_API_KEY;
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: isOpenRouter ? process.env.OPENROUTER_API_KEY : process.env.OPENAI_API_KEY,
+  baseURL: isOpenRouter ? "https://openrouter.ai/api/v1" : undefined,
+  defaultHeaders: isOpenRouter
+    ? {
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+        "X-Title": "BookFinder AI",
+      }
+    : undefined,
 });
+
+// Default model based on provider
+const DEFAULT_MODEL = isOpenRouter
+  ? process.env.OPENROUTER_MODEL || "google/gemma-2-9b-it:free"
+  : "gpt-4o";
 
 export default openai;
 
@@ -11,7 +26,7 @@ export async function streamCompletion(
   systemPrompt?: string
 ): Promise<ReadableStream> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: DEFAULT_MODEL,
     messages: [
       ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
       { role: "user", content: prompt },
@@ -53,13 +68,19 @@ Provide your analysis in the following JSON format:
 
 Be helpful, concise, and focus on helping the reader decide if this book is right for them.`;
 
+  // Some free models don't support json_object response format
+  const supportsJsonFormat = !isOpenRouter || DEFAULT_MODEL.includes("gpt");
+
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: DEFAULT_MODEL,
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: `Please analyze this book:\n\n${bookInfo}` },
+      {
+        role: "user",
+        content: `Please analyze this book and respond with valid JSON only:\n\n${bookInfo}`,
+      },
     ],
-    response_format: { type: "json_object" },
+    ...(supportsJsonFormat ? { response_format: { type: "json_object" } } : {}),
   });
 
   return response.choices[0].message.content || "{}";
