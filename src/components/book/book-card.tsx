@@ -12,10 +12,48 @@ import { cn } from "@/lib/utils";
 interface BookCardProps {
   book: Book;
   className?: string;
+  compact?: boolean;
 }
 
-export function BookCard({ book, className }: BookCardProps) {
+export function BookCard({ book, className, compact = false }: BookCardProps) {
   const coverUrl = getBookCoverUrl(book);
+
+  if (compact) {
+    return (
+      <Link href={`/book/${encodeURIComponent(book.id)}`}>
+        <Card
+          className={cn(
+            "group cursor-pointer overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md",
+            className
+          )}
+        >
+          <CardContent className="p-3">
+            <div className="flex gap-3">
+              {/* Small Cover */}
+              <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded bg-muted">
+                <Image src={coverUrl} alt={book.title} fill className="object-cover" sizes="48px" />
+              </div>
+              {/* Info */}
+              <div className="min-w-0 flex-1">
+                <h4 className="line-clamp-1 text-sm font-medium group-hover:text-primary">
+                  {book.title}
+                </h4>
+                <p className="line-clamp-1 text-xs text-muted-foreground">
+                  {book.authors.join(", ")}
+                </p>
+                {book.averageRating && (
+                  <div className="mt-1 flex items-center gap-1">
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    <span className="text-xs">{book.averageRating.toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    );
+  }
 
   return (
     <Link href={`/book/${encodeURIComponent(book.id)}`}>
