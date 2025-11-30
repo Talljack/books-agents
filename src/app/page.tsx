@@ -3,20 +3,21 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
-import { MessageSquare, Search } from "lucide-react";
+import { MessageSquare, Search, Sparkles } from "lucide-react";
 import { Hero } from "@/components/blocks/hero";
 import { SearchBox } from "@/components/blocks/search-box";
 import { BookCard } from "@/components/book/book-card";
 import { BookGridSkeleton } from "@/components/book/book-skeleton";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { ChatInterfaceV2 } from "@/components/chat/chat-interface-v2";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Book } from "@/types/book";
 
-type Mode = "chat" | "search";
+type Mode = "langgraph" | "chat" | "search";
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("chat");
+  const [mode, setMode] = useState<Mode>("langgraph");
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -73,13 +74,22 @@ export default function Home() {
         <div className="relative z-10 -mt-8 mb-8 flex justify-center gap-2">
           <Card className="inline-flex gap-1 p-1">
             <Button
+              variant={mode === "langgraph" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setMode("langgraph")}
+              className="gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              LangGraph Agent
+            </Button>
+            <Button
               variant={mode === "chat" ? "default" : "ghost"}
               size="sm"
               onClick={() => setMode("chat")}
               className="gap-2"
             >
               <MessageSquare className="h-4 w-4" />
-              AI Assistant
+              Basic Chat
             </Button>
             <Button
               variant={mode === "search" ? "default" : "ghost"}
@@ -95,7 +105,19 @@ export default function Home() {
 
         {/* Content based on mode */}
         <AnimatePresence mode="wait">
-          {mode === "chat" ? (
+          {mode === "langgraph" ? (
+            <motion.div
+              key="langgraph"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Card className="mx-auto max-w-3xl overflow-hidden">
+                <ChatInterfaceV2 onBooksFound={handleBooksFound} />
+              </Card>
+            </motion.div>
+          ) : mode === "chat" ? (
             <motion.div
               key="chat"
               initial={{ opacity: 0, y: 20 }}
