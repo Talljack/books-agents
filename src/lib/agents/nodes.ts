@@ -1,12 +1,8 @@
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import { BookAgentStateType, UserPreferences, InferredPreferences } from "./types";
+import { BookAgentStateType, InferredPreferences } from "./types";
 import { searchBooksTool } from "./tools";
 import { Book } from "@/types/book";
-import { 
-  getIntentAnalysisPrompt, 
-  RESPONSE_SYSTEM_PROMPTS,
-  getRecommendationResponsePrompt 
-} from "./prompts";
+import { getIntentAnalysisPrompt, RESPONSE_SYSTEM_PROMPTS } from "./prompts";
 import { createLLM as createLLMFromFactory, getLLMInfo } from "@/lib/llm/factory";
 
 // 重新导出 createLLM 以保持兼容性
@@ -61,9 +57,11 @@ async function analyzeUserIntent(userMessage: string): Promise<AnalyzedIntent> {
 
   // 降级：简单规则分析
   const hasChinese = /[\u4e00-\u9fff]/.test(userMessage);
-  const hasTheoreticalHint = /原理|底层|理论|设计|实现|架构|不是使用|不是教程|偏技术/.test(userMessage);
+  const hasTheoreticalHint = /原理|底层|理论|设计|实现|架构|不是使用|不是教程|偏技术/.test(
+    userMessage
+  );
   const hasPracticalHint = /实战|教程|入门|使用|项目|实践|开发/.test(userMessage);
-  
+
   let bookType: "practical" | "theoretical" | "both" | undefined;
   if (hasTheoreticalHint && !hasPracticalHint) {
     bookType = "theoretical";
@@ -137,7 +135,11 @@ async function inferPreferencesWithLLM(userMessage: string): Promise<InferredPre
   return {
     topic: intent.topic,
     level: intent.level || "beginner",
-    levelLabel: intent.level ? labels.level[intent.level] : (intent.category === "fiction" ? labels.fiction : labels.level.beginner),
+    levelLabel: intent.level
+      ? labels.level[intent.level]
+      : intent.category === "fiction"
+        ? labels.fiction
+        : labels.level.beginner,
     language: intent.language,
     languageLabel: labels.language[intent.language],
     confidence: 0.85,
@@ -166,9 +168,10 @@ function buildSearchQuery(preferences: InferredPreferences): string {
   if (!preferences.isFiction) {
     if (preferences.bookType === "theoretical") {
       // 理论类：添加原理相关词
-      const theoreticalKeywords = preferences.language === "zh" 
-        ? ["原理", "设计", "深入"] 
-        : ["principles", "internals", "design"];
+      const theoreticalKeywords =
+        preferences.language === "zh"
+          ? ["原理", "设计", "深入"]
+          : ["principles", "internals", "design"];
       parts.push(theoreticalKeywords[0]);
     } else if (preferences.bookType === "practical") {
       // 实战类：添加实战相关词
@@ -249,9 +252,7 @@ export async function conversationNode(
 /**
  * 工具执行节点 - 执行搜索工具
  */
-export async function toolNode(
-  state: BookAgentStateType
-): Promise<Partial<BookAgentStateType>> {
+export async function toolNode(state: BookAgentStateType): Promise<Partial<BookAgentStateType>> {
   const lastMessage = state.messages[state.messages.length - 1];
 
   // 检查是否是 AI 消息且有工具调用
@@ -259,7 +260,7 @@ export async function toolNode(
     console.log("[Node] No tool calls found");
     return {};
   }
-  
+
   const aiMessage = lastMessage as AIMessage;
   const toolCalls = aiMessage.tool_calls;
   if (!toolCalls || toolCalls.length === 0) {
@@ -272,7 +273,11 @@ export async function toolNode(
 
   if (toolCall.name === "search_books") {
     try {
-      const args = toolCall.args as { query: string; maxResults?: number; language?: "en" | "zh" | "any" };
+      const args = toolCall.args as {
+        query: string;
+        maxResults?: number;
+        language?: "en" | "zh" | "any";
+      };
       const result = await searchBooksTool.invoke(args);
       const books = result as Book[];
 
@@ -329,7 +334,7 @@ export async function responseNode(
 
   if (state.books.length === 0) {
     const message = new AIMessage(
-      isEnglish 
+      isEnglish
         ? "Sorry, no books found matching your criteria. Try adjusting your search terms."
         : "抱歉，没有找到符合条件的书籍。您可以尝试调整搜索条件或换一些关键词。"
     );
@@ -346,9 +351,9 @@ export async function responseNode(
     .join("\n");
 
   const inferredInfo = inferred
-    ? (isEnglish 
-        ? `Inferred preferences: Topic=${inferred.topic}, Level=${inferred.levelLabel}, Language=${inferred.languageLabel}`
-        : `推断的偏好: 主题=${inferred.topic}, 难度=${inferred.levelLabel}, 语言=${inferred.languageLabel}`)
+    ? isEnglish
+      ? `Inferred preferences: Topic=${inferred.topic}, Level=${inferred.levelLabel}, Language=${inferred.languageLabel}`
+      : `推断的偏好: 主题=${inferred.topic}, 难度=${inferred.levelLabel}, 语言=${inferred.languageLabel}`
     : "";
 
   const prompt = isEnglish
@@ -379,7 +384,7 @@ ${booksInfo}
       messages: [response],
       phase: "complete",
     };
-  } catch (error) {
+  } catch {
     // 如果生成失败，使用默认消息
     const message = new AIMessage(
       isEnglish
