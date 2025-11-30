@@ -13,10 +13,13 @@ export interface Book {
   thumbnail?: string;
   previewLink?: string;
   infoLink?: string;
+  readOnlineLink?: string; // 在线阅读链接
   averageRating?: number;
   ratingsCount?: number;
   isbn?: string;
-  source: "google" | "openlibrary";
+  doubanRating?: number; // 豆瓣评分
+  doubanUrl?: string; // 豆瓣链接
+  source: "google" | "openlibrary" | "internetarchive" | "douban";
 }
 
 export interface SearchResult {
