@@ -44,11 +44,13 @@ export async function POST(request: NextRequest) {
     if (books.length > 0) {
       // 使用 LLM 生成推荐说明
       try {
+        console.log("[ConfirmSearch] Generating recommendation message...");
         const llm = createLLM();
         const booksInfo = books
           .slice(0, 5)
           .map((b, idx) => `${idx + 1}. "${b.title}" - ${b.authors.join(", ")}`)
           .join("\n");
+        console.log("[ConfirmSearch] Books info for LLM:", booksInfo);
 
         const prompt = isEnglish
           ? `Based on the following information, generate a brief recommendation.
@@ -82,7 +84,9 @@ ${booksInfo}
         ]);
 
         responseMessage = typeof response.content === "string" ? response.content : "";
-      } catch {
+        console.log("[ConfirmSearch] LLM response message:", responseMessage);
+      } catch (llmError) {
+        console.error("[ConfirmSearch] LLM error:", llmError);
         responseMessage = isEnglish
           ? (preferences.isFiction
               ? `Found ${books.length} ${preferences.topic} books for you`

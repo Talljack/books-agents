@@ -1,47 +1,20 @@
-import { ChatOpenAI } from "@langchain/openai";
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { BookAgentStateType, UserPreferences, InferredPreferences } from "./types";
 import { searchBooksTool } from "./tools";
 import { Book } from "@/types/book";
+import { 
+  getIntentAnalysisPrompt, 
+  RESPONSE_SYSTEM_PROMPTS,
+  getRecommendationResponsePrompt 
+} from "./prompts";
+import { createLLM as createLLMFromFactory, getLLMInfo } from "@/lib/llm/factory";
 
-// 检查是否使用 OpenRouter
-const isOpenRouter = !!process.env.OPENROUTER_API_KEY;
+// 重新导出 createLLM 以保持兼容性
+export const createLLM = createLLMFromFactory;
 
-// 检测模型是否支持 Function Calling
-// 大多数免费模型不支持，需要使用 prompt-based 方式
-const MODEL_NAME = isOpenRouter
-  ? process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free"
-  : "gpt-4o";
-
-// 支持 Function Calling 的模型列表
-const TOOL_CALLING_MODELS = [
-  "gpt-4o", "gpt-4", "gpt-3.5-turbo",
-  "claude-3", "claude-2",
-  "mistral-large", "mistral-medium"
-];
-
-const supportsToolCalling = TOOL_CALLING_MODELS.some(m => MODEL_NAME.includes(m));
-
-/**
- * 创建 LLM 实例
- */
-export function createLLM() {
-  return new ChatOpenAI({
-    modelName: MODEL_NAME,
-    temperature: 0.7,
-    maxTokens: 1000,
-    configuration: {
-      baseURL: isOpenRouter ? "https://openrouter.ai/api/v1" : undefined,
-      defaultHeaders: isOpenRouter
-        ? {
-            "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-            "X-Title": "BookFinder AI",
-          }
-        : undefined,
-    },
-    apiKey: isOpenRouter ? process.env.OPENROUTER_API_KEY : process.env.OPENAI_API_KEY,
-  });
-}
+// 日志输出当前 LLM 配置
+const llmInfo = getLLMInfo();
+console.log(`[LLM] Provider: ${llmInfo.provider}, Model: ${llmInfo.model}`);
 
 /**
  * LLM 意图分析结果
@@ -61,44 +34,8 @@ interface AnalyzedIntent {
 async function analyzeUserIntent(userMessage: string): Promise<AnalyzedIntent> {
   const llm = createLLM();
 
-  const prompt = `你是一个专业的图书推荐意图分析专家。请仔细分析用户的书籍搜索需求。
-
-用户输入: "${userMessage}"
-
-请深入理解用户的真实意图，特别注意：
-1. 用户是否明确表达了对"理论/原理"还是"实战/使用"的偏好
-2. 用户提到的具体技术领域或主题
-3. 用户的经验水平暗示
-4. 如果用户提到了具体的书名（如《三体》），要理解这是作为参考/类似推荐
-
-返回以下 JSON（不要包含其他文字）:
-{
-  "topic": "核心搜索主题（具体的类型/领域名称）",
-  "category": "technical（技术/编程/学习类）或 fiction（小说/文学/故事类）或 other（其他）",
-  "level": "beginner/intermediate/advanced 或 null",
-  "language": "zh 或 en（根据用户输入语言）",
-  "bookType": "practical 或 theoretical 或 both 或 null",
-  "searchKeywords": ["关键词1", "关键词2"]
-}
-
-【极其重要】关于 searchKeywords 的规则：
-1. 对于小说/文学类（fiction）：
-   - 只生成1-2个关键词！不要超过2个！
-   - 第一个关键词必须是具体的类型（如"科幻小说"、"悬疑小说"、"武侠小说"）
-   - 绝对不要加"推荐"、"热门"、"经典"、"畅销"这种修饰词
-   - 如果用户提到参考书名，可以只用那个书名或作者名作为第二个关键词
-   
-2. 对于技术类（technical）：
-   - 生成2-4个搜索词
-   - 根据 bookType 选择合适的修饰词
-
-示例：
-- "推荐科幻小说" → {"topic": "科幻小说", "category": "fiction", "searchKeywords": ["科幻小说"]}
-- "找一些比较热门的科幻小说，类似于《三体》" → {"topic": "科幻小说", "category": "fiction", "searchKeywords": ["科幻小说", "三体"]}
-- "悬疑推理小说，像东野圭吾那种" → {"topic": "悬疑推理", "category": "fiction", "searchKeywords": ["悬疑小说", "东野圭吾"]}
-- "武侠小说推荐" → {"topic": "武侠小说", "category": "fiction", "searchKeywords": ["武侠小说"]}
-- "我想学Python" → {"topic": "Python", "category": "technical", "bookType": "practical", "searchKeywords": ["Python入门", "Python编程"]}
-- "我想要技术书籍，偏技术一些而不是使用" → {"topic": "计算机技术", "category": "technical", "bookType": "theoretical", "searchKeywords": ["计算机原理", "系统设计"]}`;
+  // 使用 prompts.ts 中定义的提示词
+  const prompt = getIntentAnalysisPrompt(userMessage);
 
   try {
     const response = await llm.invoke(prompt);
@@ -259,27 +196,7 @@ function buildSearchQuery(preferences: InferredPreferences): string {
   return parts.join(" ");
 }
 
-// 系统提示词 - 直接搜索模式（多语言）
-const SYSTEM_PROMPTS = {
-  zh: `你是一个专业友好的图书推荐助手。用户的请求已经被处理，现在需要你生成简短的推荐说明。
-
-## 任务
-根据搜索结果，用1-2句话说明这些书籍为什么适合用户。保持简洁友好。
-
-## 重要规则
-- 不要问问题，直接给出推荐说明
-- 用中文回复
-- 保持简洁，不超过3句话`,
-  en: `You are a professional and friendly book recommendation assistant. The user's request has been processed, now generate a brief recommendation.
-
-## Task
-Based on the search results, explain in 1-2 sentences why these books are suitable for the user. Keep it concise and friendly.
-
-## Important Rules
-- Don't ask questions, just provide the recommendation
-- Reply in English
-- Keep it brief, no more than 3 sentences`,
-};
+// 系统提示词已移至 prompts.ts
 
 /**
  * 对话节点 - 智能推断 + 立即搜索
@@ -454,7 +371,7 @@ ${booksInfo}
 
   try {
     const response = await llm.invoke([
-      new SystemMessage(lang === "en" ? SYSTEM_PROMPTS.en : SYSTEM_PROMPTS.zh),
+      new SystemMessage(lang === "en" ? RESPONSE_SYSTEM_PROMPTS.en : RESPONSE_SYSTEM_PROMPTS.zh),
       new HumanMessage(prompt),
     ]);
 
