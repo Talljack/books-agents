@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { MessageSquare, Search, Sparkles, ArrowLeft, BookOpen, Settings } from "lucide-react";
+import {
+  MessageSquare,
+  Search,
+  Sparkles,
+  ArrowLeft,
+  BookOpen,
+  Settings,
+  Loader2,
+} from "lucide-react";
 import { SearchBox } from "@/components/blocks/search-box";
 import { BookCard } from "@/components/book/book-card";
 import { BookGridSkeleton } from "@/components/book/book-skeleton";
@@ -34,7 +42,20 @@ const modeConfig: Record<Mode, { icon: typeof Sparkles; label: string; descripti
   },
 };
 
-export default function SearchPage() {
+// Loading fallback component
+function SearchPageLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">加载中...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main search content component that uses useSearchParams
+function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -280,5 +301,14 @@ export default function SearchPage() {
         </AnimatePresence>
       </main>
     </div>
+  );
+}
+
+// Export default with Suspense wrapper
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchPageLoading />}>
+      <SearchContent />
+    </Suspense>
   );
 }
