@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -20,10 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Book } from "@/types/book";
 
-type Mode = "langgraph" | "chat" | "search";
+type Mode = "agent" | "chat" | "search";
 
-const modeConfig = {
-  langgraph: {
+const modeConfig: Record<Mode, { icon: typeof Sparkles; label: string; description: string }> = {
+  agent: {
     icon: Sparkles,
     label: "AI Agent",
     description: "智能对话，理解需求后搜索",
@@ -41,11 +42,34 @@ const modeConfig = {
 };
 
 export default function SearchPage() {
-  const [mode, setMode] = useState<Mode>("langgraph");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // 从 URL 参数读取初始模式
+  const modeParam = searchParams.get("mode") as Mode | null;
+  const initialMode: Mode = modeParam && modeParam in modeConfig ? modeParam : "agent";
+  
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [lastQuery, setLastQuery] = useState("");
+
+  // 当 URL 参数变化时更新模式
+  useEffect(() => {
+    const modeFromUrl = searchParams.get("mode") as Mode | null;
+    if (modeFromUrl && modeFromUrl in modeConfig && modeFromUrl !== mode) {
+      setMode(modeFromUrl);
+    }
+  }, [searchParams, mode]);
+
+  // 切换模式时更新 URL
+  const handleModeChange = useCallback((newMode: Mode) => {
+    setMode(newMode);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("mode", newMode);
+    router.push(`/search?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
 
   const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
@@ -138,7 +162,7 @@ export default function SearchPage() {
                       key={m}
                       variant={mode === m ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setMode(m)}
+                      onClick={() => handleModeChange(m)}
                       className="gap-2"
                     >
                       <Icon className="h-4 w-4" />
@@ -163,9 +187,9 @@ export default function SearchPage() {
 
         {/* Content based on mode */}
         <AnimatePresence mode="wait">
-          {mode === "langgraph" ? (
+          {mode === "agent" ? (
             <motion.div
-              key="langgraph"
+              key="agent"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -267,4 +291,3 @@ export default function SearchPage() {
     </div>
   );
 }
-

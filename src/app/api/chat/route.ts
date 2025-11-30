@@ -1,26 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
-import OpenAI from "openai";
+import { HumanMessage, AIMessage, BaseMessage, SystemMessage } from "@langchain/core/messages";
 import { runBookAgent, type InferredPreferences } from "@/lib/agents";
 import { searchGoogleBooks } from "@/lib/api/google-books";
 import { searchOpenLibrary } from "@/lib/api/open-library";
+import { searchDoubanBooks, isChineseQuery } from "@/lib/api/douban";
 import { Book } from "@/types/book";
-
-// Support both OpenAI and OpenRouter
-const isOpenRouter = !!process.env.OPENROUTER_API_KEY;
-
-const openai = new OpenAI({
-  apiKey: isOpenRouter ? process.env.OPENROUTER_API_KEY : process.env.OPENAI_API_KEY,
-  baseURL: isOpenRouter ? "https://openrouter.ai/api/v1" : undefined,
-  defaultHeaders: isOpenRouter
-    ? {
-        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-        "X-Title": "BookFinder AI",
-      }
-    : undefined,
-});
-
-const MODEL = isOpenRouter ? process.env.OPENROUTER_MODEL || "qwen/qwen3-235b-a22b:free" : "gpt-4o";
+import { createLLM } from "@/lib/llm/factory";
 
 // 检测语言
 function detectLanguage(text: string): "zh" | "en" {
@@ -118,91 +103,107 @@ export async function POST(request: NextRequest) {
 
 /**
  * 基础对话模式 - 简单的问答 + 搜索
+ * 使用配置的 LLM（支持 Ollama 等）
  */
 async function handleBasicMode(message: string, history: ChatMessage[]) {
   const lang = detectLanguage(message);
   
-  // Build conversation history
-  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: SYSTEM_PROMPTS[lang] },
-    ...history.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-    { role: "user", content: message },
-  ];
+  try {
+    // 使用 LLM 工厂创建模型
+    const llm = createLLM();
+    
+    // Build conversation history
+    const messages: BaseMessage[] = [
+      new SystemMessage(SYSTEM_PROMPTS[lang]),
+      ...history.map((m) =>
+        m.role === "user" ? new HumanMessage(m.content) : new AIMessage(m.content)
+      ),
+      new HumanMessage(message),
+    ];
 
-  // Get AI response
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    messages,
-    temperature: 0.7,
-    max_tokens: 500,
-  });
+    // Get AI response
+    const response = await llm.invoke(messages);
+    const aiResponse = typeof response.content === "string" ? response.content : "";
 
-  const aiResponse = completion.choices[0]?.message?.content || "";
+    // Check if the response contains a search command
+    const searchMatch = aiResponse.match(/\[SEARCH:\s*([^\]]+)\]/i);
+    let books: Book[] = [];
+    let cleanResponse = aiResponse;
 
-  // Check if the response contains a search command
-  const searchMatch = aiResponse.match(/\[SEARCH:\s*([^\]]+)\]/i);
-  let books: Book[] = [];
-  let cleanResponse = aiResponse;
+    if (searchMatch) {
+      const searchQuery = searchMatch[1].trim();
+      cleanResponse = aiResponse.replace(/\[SEARCH:[^\]]+\]/gi, "").trim();
 
-  if (searchMatch) {
-    const searchQuery = searchMatch[1].trim();
-    cleanResponse = aiResponse.replace(/\[SEARCH:[^\]]+\]/gi, "").trim();
-
-    // Add a message about searching
-    const searchingMsg = lang === "zh" ? "正在搜索书籍..." : "Searching for books...";
-    if (!cleanResponse.toLowerCase().includes("searching") && !cleanResponse.includes("搜索")) {
-      cleanResponse += `\n\n${searchingMsg}`;
-    }
-
-    // Perform the search
-    try {
-      const [googleResults, openLibraryResults] = await Promise.all([
-        searchGoogleBooks(searchQuery, undefined, 6),
-        searchOpenLibrary(searchQuery, 6),
-      ]);
-
-      // Combine and deduplicate
-      const allBooks = [...googleResults.books, ...openLibraryResults.books];
-      const seen = new Set<string>();
-      books = allBooks
-        .filter((book) => {
-          const key = `${book.title.toLowerCase()}-${book.authors.join(",").toLowerCase()}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        })
-        .slice(0, 8);
-
-      if (books.length > 0) {
-        const foundMsg = lang === "zh" 
-          ? `为您找到了 ${books.length} 本书籍：`
-          : `Here are ${books.length} books I found for you:`;
-        cleanResponse = cleanResponse.replace(
-          lang === "zh" ? /正在搜索书籍\.\.\./ : /Searching for books\.\.\./,
-          foundMsg
-        );
-      } else {
-        const notFoundMsg = lang === "zh"
-          ? "抱歉，没有找到匹配的书籍。请尝试其他关键词。"
-          : "Unfortunately, I couldn't find any books matching those criteria. Could you try different keywords?";
-        cleanResponse += ` ${notFoundMsg}`;
+      // Add a message about searching
+      const searchingMsg = lang === "zh" ? "正在搜索书籍..." : "Searching for books...";
+      if (!cleanResponse.toLowerCase().includes("searching") && !cleanResponse.includes("搜索")) {
+        cleanResponse += `\n\n${searchingMsg}`;
       }
-    } catch (searchError) {
-      console.error("Search error:", searchError);
-      const errorMsg = lang === "zh"
-        ? "搜索时出现问题，请重试。"
-        : "Sorry, I had trouble searching for books. Please try again.";
-      cleanResponse += ` ${errorMsg}`;
-    }
-  }
 
-  return NextResponse.json({
-    message: cleanResponse,
-    books: books.length > 0 ? books : undefined,
-  });
+      // Perform the search - 根据语言选择搜索源
+      try {
+        const isChinese = isChineseQuery(searchQuery);
+        
+        let allBooks: Book[] = [];
+        
+        if (isChinese) {
+          // 中文搜索：优先豆瓣
+          const [doubanResults, googleResults] = await Promise.all([
+            searchDoubanBooks(searchQuery, 10).catch(() => ({ books: [] })),
+            searchGoogleBooks(searchQuery, undefined, 6).catch(() => ({ books: [], totalItems: 0, query: searchQuery })),
+          ]);
+          allBooks = [...doubanResults.books, ...googleResults.books];
+        } else {
+          // 英文搜索：Google + Open Library
+          const [googleResults, openLibraryResults] = await Promise.all([
+            searchGoogleBooks(searchQuery, undefined, 8).catch(() => ({ books: [], totalItems: 0, query: searchQuery })),
+            searchOpenLibrary(searchQuery, 6).catch(() => ({ books: [], totalItems: 0, query: searchQuery })),
+          ]);
+          allBooks = [...googleResults.books, ...openLibraryResults.books];
+        }
+
+        // Deduplicate
+        const seen = new Set<string>();
+        books = allBooks
+          .filter((book) => {
+            const key = `${book.title.toLowerCase()}-${book.authors.join(",").toLowerCase()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .slice(0, 12);
+
+        if (books.length > 0) {
+          const foundMsg = lang === "zh" 
+            ? `为您找到了 ${books.length} 本书籍：`
+            : `Here are ${books.length} books I found for you:`;
+          cleanResponse = cleanResponse.replace(
+            lang === "zh" ? /正在搜索书籍\.\.\./ : /Searching for books\.\.\./,
+            foundMsg
+          );
+        } else {
+          const notFoundMsg = lang === "zh"
+            ? "抱歉，没有找到匹配的书籍。请尝试其他关键词。"
+            : "Unfortunately, I couldn't find any books matching those criteria. Could you try different keywords?";
+          cleanResponse += ` ${notFoundMsg}`;
+        }
+      } catch (searchError) {
+        console.error("Search error:", searchError);
+        const errorMsg = lang === "zh"
+          ? "搜索时出现问题，请重试。"
+          : "Sorry, I had trouble searching for books. Please try again.";
+        cleanResponse += ` ${errorMsg}`;
+      }
+    }
+
+    return NextResponse.json({
+      message: cleanResponse,
+      books: books.length > 0 ? books : undefined,
+    });
+  } catch (error) {
+    console.error("[Basic Mode] LLM Error:", error);
+    throw error;
+  }
 }
 
 /**
