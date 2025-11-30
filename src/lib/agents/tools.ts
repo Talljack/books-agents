@@ -94,6 +94,126 @@ function optimizeSearchQuery(query: string): string {
 }
 
 /**
+ * 知名热门技术书籍列表
+ * 这些书籍应该优先推荐
+ */
+const FAMOUS_TECH_BOOKS: Record<string, { title: string; authors: string[]; bonus: number }[]> = {
+  ai: [
+    { title: "Deep Learning", authors: ["Ian Goodfellow", "Yoshua Bengio"], bonus: 100 },
+    { title: "深度学习", authors: ["花书", "Ian Goodfellow"], bonus: 100 },
+    { title: "Hands-On Machine Learning", authors: ["Aurélien Géron"], bonus: 90 },
+    { title: "机器学习实战", authors: ["Peter Harrington"], bonus: 85 },
+    { title: "Pattern Recognition", authors: ["Christopher Bishop"], bonus: 85 },
+    { title: "统计学习方法", authors: ["李航"], bonus: 90 },
+    { title: "机器学习", authors: ["周志华", "西瓜书"], bonus: 95 },
+    { title: "Python Machine Learning", authors: ["Sebastian Raschka"], bonus: 80 },
+    { title: "Artificial Intelligence: A Modern Approach", authors: ["Stuart Russell", "Peter Norvig"], bonus: 95 },
+    { title: "人工智能：一种现代方法", authors: ["Stuart Russell"], bonus: 95 },
+    { title: "Neural Networks and Deep Learning", authors: ["Michael Nielsen"], bonus: 80 },
+    { title: "动手学深度学习", authors: ["李沐", "Aston Zhang"], bonus: 90 },
+    { title: "Dive into Deep Learning", authors: ["Aston Zhang"], bonus: 90 },
+    { title: "百面机器学习", authors: ["葫芦娃"], bonus: 80 },
+    { title: "Machine Learning Yearning", authors: ["Andrew Ng", "吴恩达"], bonus: 85 },
+  ],
+  python: [
+    { title: "Python编程：从入门到实践", authors: ["Eric Matthes"], bonus: 90 },
+    { title: "Python Crash Course", authors: ["Eric Matthes"], bonus: 90 },
+    { title: "流畅的Python", authors: ["Luciano Ramalho"], bonus: 95 },
+    { title: "Fluent Python", authors: ["Luciano Ramalho"], bonus: 95 },
+    { title: "Python Cookbook", authors: ["David Beazley"], bonus: 85 },
+    { title: "Effective Python", authors: ["Brett Slatkin"], bonus: 85 },
+    { title: "Learning Python", authors: ["Mark Lutz"], bonus: 80 },
+  ],
+  javascript: [
+    { title: "JavaScript高级程序设计", authors: ["Nicholas Zakas", "红宝书"], bonus: 95 },
+    { title: "Professional JavaScript", authors: ["Nicholas Zakas"], bonus: 95 },
+    { title: "JavaScript权威指南", authors: ["David Flanagan", "犀牛书"], bonus: 90 },
+    { title: "JavaScript: The Good Parts", authors: ["Douglas Crockford"], bonus: 85 },
+    { title: "你不知道的JavaScript", authors: ["Kyle Simpson"], bonus: 90 },
+    { title: "You Don't Know JS", authors: ["Kyle Simpson"], bonus: 90 },
+    { title: "Eloquent JavaScript", authors: ["Marijn Haverbeke"], bonus: 85 },
+  ],
+  algorithm: [
+    { title: "算法导论", authors: ["Thomas Cormen", "CLRS"], bonus: 100 },
+    { title: "Introduction to Algorithms", authors: ["Thomas Cormen"], bonus: 100 },
+    { title: "算法", authors: ["Robert Sedgewick"], bonus: 90 },
+    { title: "Algorithms", authors: ["Robert Sedgewick"], bonus: 90 },
+    { title: "编程珠玑", authors: ["Jon Bentley"], bonus: 85 },
+    { title: "Programming Pearls", authors: ["Jon Bentley"], bonus: 85 },
+    { title: "剑指Offer", authors: ["何海涛"], bonus: 80 },
+    { title: "LeetCode", authors: [], bonus: 75 },
+  ],
+  system: [
+    { title: "深入理解计算机系统", authors: ["Randal Bryant", "CSAPP"], bonus: 100 },
+    { title: "Computer Systems: A Programmer's Perspective", authors: ["Randal Bryant"], bonus: 100 },
+    { title: "操作系统导论", authors: ["Remzi Arpaci"], bonus: 90 },
+    { title: "Operating Systems: Three Easy Pieces", authors: ["Remzi Arpaci"], bonus: 90 },
+    { title: "现代操作系统", authors: ["Andrew Tanenbaum"], bonus: 90 },
+    { title: "计算机网络", authors: ["谢希仁", "James Kurose"], bonus: 85 },
+    { title: "TCP/IP详解", authors: ["W. Richard Stevens"], bonus: 90 },
+  ],
+};
+
+/**
+ * 检查书籍是否是知名热门书籍
+ */
+function getFamousBookBonus(book: Book, query: string): number {
+  const title = (book.title || "").toLowerCase();
+  const authors = (book.authors || []).join(" ").toLowerCase();
+  const queryLower = query.toLowerCase();
+  
+  // 确定查询类型
+  let categories: string[] = [];
+  if (queryLower.includes("ai") || queryLower.includes("人工智能") || 
+      queryLower.includes("机器学习") || queryLower.includes("深度学习") ||
+      queryLower.includes("machine learning") || queryLower.includes("deep learning")) {
+    categories.push("ai");
+  }
+  if (queryLower.includes("python")) {
+    categories.push("python");
+  }
+  if (queryLower.includes("javascript") || queryLower.includes("js") || queryLower.includes("前端")) {
+    categories.push("javascript");
+  }
+  if (queryLower.includes("算法") || queryLower.includes("algorithm") || queryLower.includes("数据结构")) {
+    categories.push("algorithm");
+  }
+  if (queryLower.includes("系统") || queryLower.includes("操作系统") || queryLower.includes("网络") ||
+      queryLower.includes("system") || queryLower.includes("operating")) {
+    categories.push("system");
+  }
+  
+  // 检查所有相关类别
+  for (const category of categories) {
+    const famousBooks = FAMOUS_TECH_BOOKS[category] || [];
+    for (const famous of famousBooks) {
+      const famousTitle = famous.title.toLowerCase();
+      const famousAuthors = famous.authors.map(a => a.toLowerCase());
+      
+      // 标题匹配
+      if (title.includes(famousTitle) || famousTitle.includes(title)) {
+        return famous.bonus;
+      }
+      
+      // 作者匹配（且标题相关）
+      for (const famousAuthor of famousAuthors) {
+        if (famousAuthor && authors.includes(famousAuthor)) {
+          // 确认标题也有相关性
+          const titleWords = famousTitle.split(/\s+/);
+          for (const word of titleWords) {
+            if (word.length > 3 && title.includes(word)) {
+              return famous.bonus;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return 0;
+}
+
+/**
  * 计算书籍与查询的相关性分数
  */
 function calculateRelevanceScore(book: Book, query: string): number {
@@ -108,11 +228,20 @@ function calculateRelevanceScore(book: Book, query: string): number {
   const isTheoretical = isTheoreticalQuery(query);
   const isFiction = isFictionQuery(query);
 
+  // 首先检查是否是知名热门书籍（非小说类）
+  if (!isFiction) {
+    const famousBonus = getFamousBookBonus(book, query);
+    if (famousBonus > 0) {
+      score += famousBonus;
+      console.log(`[Score] Famous book bonus for "${book.title}": +${famousBonus}`);
+    }
+  }
+
   // 核心主题关键词（必须匹配）
   const coreTopics = [
     "机器学习", "深度学习", "人工智能", "python", "javascript", "数据分析", "web开发",
     "操作系统", "数据结构", "算法", "计算机网络", "编译", "数据库", "react", "vue",
-    "java", "c++", "go", "rust", "typescript"
+    "java", "c++", "go", "rust", "typescript", "ai", "ml", "machine learning", "deep learning"
   ];
   const queryCoreTopics = queryTerms.filter(t => coreTopics.some(c => c.includes(t) || t.includes(c)));
 
@@ -168,10 +297,21 @@ function calculateRelevanceScore(book: Book, query: string): number {
   if (book.publishedDate) score += 2;
   if (book.thumbnail) score += 2;
   if (book.description && book.description.length > 50) score += 2;
+  
+  // 豆瓣来源的书籍加分（通常评分更可靠）
+  if (book.source === "douban") {
+    score += 15;
+  }
 
   // 不相关书籍减分
-  const irrelevantTerms = ["营销", "商业", "管理", "领导", "oracle", "城区", "龙华", "marketing", "business"];
+  const irrelevantTerms = ["营销", "商业", "管理", "领导", "oracle", "城区", "龙华", "marketing", "business", "misc", "杂志", "周刊"];
   for (const term of irrelevantTerms) {
+    if (title.includes(term)) score -= 30;
+  }
+  
+  // 低质量书籍减分
+  const lowQualityIndicators = ["fake", "misc", "collection", "合集", "大全", "速成"];
+  for (const term of lowQualityIndicators) {
     if (title.includes(term)) score -= 20;
   }
 
@@ -406,10 +546,82 @@ function buildGoogleBooksQueries(query: string, isChinese: boolean): string[] {
       queries.push(coreWords.join(""));
     }
   } else {
-    // 非小说类，使用原始查询
-    queries.push(query);
-    if (coreWords.length > 0 && coreWords.join("") !== query) {
-      queries.push(coreWords.join(" "));
+    // 非小说类（技术书籍）
+    const queryLower = query.toLowerCase();
+    
+    // AI/机器学习相关
+    if (queryLower.includes("ai") || queryLower.includes("人工智能") || 
+        queryLower.includes("机器学习") || queryLower.includes("深度学习") ||
+        queryLower.includes("machine learning") || queryLower.includes("deep learning")) {
+      if (isChinese) {
+        queries.push("机器学习 周志华");
+        queries.push("深度学习 花书");
+        queries.push("统计学习方法 李航");
+        queries.push("动手学深度学习");
+        queries.push("机器学习实战");
+      } else {
+        queries.push("Deep Learning Goodfellow");
+        queries.push("Hands-On Machine Learning Géron");
+        queries.push("Machine Learning Mitchell");
+        queries.push("Artificial Intelligence Modern Approach");
+        queries.push("Pattern Recognition Bishop");
+      }
+    }
+    
+    // Python 相关
+    else if (queryLower.includes("python")) {
+      if (isChinese) {
+        queries.push("Python编程从入门到实践");
+        queries.push("流畅的Python");
+        queries.push("Python Cookbook");
+      } else {
+        queries.push("Python Crash Course Matthes");
+        queries.push("Fluent Python Ramalho");
+        queries.push("Effective Python Slatkin");
+        queries.push("Learning Python Lutz");
+      }
+    }
+    
+    // JavaScript 相关
+    else if (queryLower.includes("javascript") || queryLower.includes("js") || queryLower.includes("前端")) {
+      if (isChinese) {
+        queries.push("JavaScript高级程序设计");
+        queries.push("你不知道的JavaScript");
+        queries.push("JavaScript权威指南");
+      } else {
+        queries.push("JavaScript The Good Parts");
+        queries.push("You Don't Know JS");
+        queries.push("Eloquent JavaScript");
+        queries.push("Professional JavaScript");
+      }
+    }
+    
+    // 算法相关
+    else if (queryLower.includes("算法") || queryLower.includes("algorithm") || queryLower.includes("数据结构")) {
+      if (isChinese) {
+        queries.push("算法导论");
+        queries.push("剑指Offer");
+        queries.push("编程珠玑");
+        queries.push("算法 第4版");
+      } else {
+        queries.push("Introduction to Algorithms CLRS");
+        queries.push("Algorithms Sedgewick");
+        queries.push("Programming Pearls");
+        queries.push("Cracking the Coding Interview");
+      }
+    }
+    
+    // 默认：使用原始查询
+    else {
+      queries.push(query);
+      if (coreWords.length > 0 && coreWords.join("") !== query) {
+        queries.push(coreWords.join(" "));
+      }
+    }
+    
+    // 也添加原始查询作为备选
+    if (!queries.includes(query)) {
+      queries.push(query);
     }
   }
   

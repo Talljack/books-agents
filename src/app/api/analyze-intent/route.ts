@@ -44,13 +44,19 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * 生成理解确认文本
+ * 生成理解确认文本（多语言）
  */
 function generateUnderstandingText(prefs: InferredPreferences): string {
+  const isEnglish = prefs.language === "en";
+  
   if (prefs.isFiction) {
-    return `我理解您想找 ${prefs.topic} 方面的${prefs.languageLabel}书籍`;
+    return isEnglish
+      ? `I understand you're looking for ${prefs.languageLabel} books about ${prefs.topic}`
+      : `我理解您想找 ${prefs.topic} 方面的${prefs.languageLabel}书籍`;
   }
-  return `我理解您想找 ${prefs.levelLabel}级别的 ${prefs.topic} ${prefs.languageLabel}书籍`;
+  return isEnglish
+    ? `I understand you're looking for ${prefs.levelLabel} level ${prefs.topic} books in ${prefs.languageLabel}`
+    : `我理解您想找 ${prefs.levelLabel}级别的 ${prefs.topic} ${prefs.languageLabel}书籍`;
 }
 
 /**

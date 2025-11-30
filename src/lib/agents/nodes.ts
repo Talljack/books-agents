@@ -145,6 +145,48 @@ async function analyzeUserIntent(userMessage: string): Promise<AnalyzedIntent> {
 }
 
 /**
+ * 国际化标签
+ */
+const i18n = {
+  zh: {
+    level: {
+      beginner: "入门",
+      intermediate: "进阶",
+      advanced: "高级",
+    },
+    bookType: {
+      practical: "实战",
+      theoretical: "理论",
+      both: "综合",
+    },
+    language: {
+      zh: "中文",
+      en: "英文",
+      any: "不限",
+    },
+    fiction: "推荐",
+  },
+  en: {
+    level: {
+      beginner: "Beginner",
+      intermediate: "Intermediate",
+      advanced: "Advanced",
+    },
+    bookType: {
+      practical: "Practical",
+      theoretical: "Theoretical",
+      both: "Comprehensive",
+    },
+    language: {
+      zh: "Chinese",
+      en: "English",
+      any: "Any",
+    },
+    fiction: "Recommended",
+  },
+};
+
+/**
  * 智能推断用户偏好（使用 LLM）
  */
 async function inferPreferencesWithLLM(userMessage: string): Promise<InferredPreferences> {
@@ -152,28 +194,19 @@ async function inferPreferencesWithLLM(userMessage: string): Promise<InferredPre
 
   console.log("[Node] LLM analyzed intent:", intent);
 
-  const levelLabels: Record<string, string> = {
-    beginner: "入门",
-    intermediate: "进阶",
-    advanced: "高级",
-  };
-
-  const bookTypeLabels: Record<string, string> = {
-    practical: "实战",
-    theoretical: "理论",
-    both: "综合",
-  };
+  // 根据用户输入语言选择标签语言
+  const labels = i18n[intent.language];
 
   return {
     topic: intent.topic,
     level: intent.level || "beginner",
-    levelLabel: intent.level ? levelLabels[intent.level] : (intent.category === "fiction" ? "推荐" : "入门"),
+    levelLabel: intent.level ? labels.level[intent.level] : (intent.category === "fiction" ? labels.fiction : labels.level.beginner),
     language: intent.language,
-    languageLabel: intent.language === "zh" ? "中文" : "英文",
+    languageLabel: labels.language[intent.language],
     confidence: 0.85,
     isFiction: intent.category === "fiction",
     bookType: intent.bookType,
-    bookTypeLabel: intent.bookType ? bookTypeLabels[intent.bookType] : undefined,
+    bookTypeLabel: intent.bookType ? labels.bookType[intent.bookType] : undefined,
     searchKeywords: intent.searchKeywords,
   };
 }
@@ -226,16 +259,27 @@ function buildSearchQuery(preferences: InferredPreferences): string {
   return parts.join(" ");
 }
 
-// 系统提示词 - 直接搜索模式
-const SYSTEM_PROMPT_DIRECT = `你是一个专业友好的图书推荐助手。用户的请求已经被处理，现在需要你生成简短的推荐说明。
+// 系统提示词 - 直接搜索模式（多语言）
+const SYSTEM_PROMPTS = {
+  zh: `你是一个专业友好的图书推荐助手。用户的请求已经被处理，现在需要你生成简短的推荐说明。
 
 ## 任务
 根据搜索结果，用1-2句话说明这些书籍为什么适合用户。保持简洁友好。
 
 ## 重要规则
 - 不要问问题，直接给出推荐说明
-- 用中文回复，除非用户使用英文
-- 保持简洁，不超过3句话`;
+- 用中文回复
+- 保持简洁，不超过3句话`,
+  en: `You are a professional and friendly book recommendation assistant. The user's request has been processed, now generate a brief recommendation.
+
+## Task
+Based on the search results, explain in 1-2 sentences why these books are suitable for the user. Keep it concise and friendly.
+
+## Important Rules
+- Don't ask questions, just provide the recommendation
+- Reply in English
+- Keep it brief, no more than 3 sentences`,
+};
 
 /**
  * 对话节点 - 智能推断 + 立即搜索
@@ -294,17 +338,26 @@ export async function toolNode(
   const lastMessage = state.messages[state.messages.length - 1];
 
   // 检查是否是 AI 消息且有工具调用
-  if (!("tool_calls" in lastMessage) || !lastMessage.tool_calls?.length) {
+  if (!("tool_calls" in lastMessage)) {
+    console.log("[Node] No tool calls found");
+    return {};
+  }
+  
+  const aiMessage = lastMessage as AIMessage;
+  const toolCalls = aiMessage.tool_calls;
+  if (!toolCalls || toolCalls.length === 0) {
     console.log("[Node] No tool calls found");
     return {};
   }
 
-  const toolCall = lastMessage.tool_calls[0];
+  const toolCall = toolCalls[0];
   console.log("[Node] Executing tool:", toolCall.name, toolCall.args);
 
   if (toolCall.name === "search_books") {
     try {
-      const books = await searchBooksTool.invoke(toolCall.args as { query: string; maxResults?: number; language?: string });
+      const args = toolCall.args as { query: string; maxResults?: number; language?: "en" | "zh" | "any" };
+      const result = await searchBooksTool.invoke(args);
+      const books = result as Book[];
 
       // 创建工具响应消息
       const toolMessage = new ToolMessage({
@@ -318,7 +371,7 @@ export async function toolNode(
 
       return {
         books,
-        searchQuery: toolCall.args.query,
+        searchQuery: args.query,
         messages: [toolMessage],
         phase: "presenting",
       };
@@ -353,9 +406,15 @@ export async function responseNode(
   const llm = createLLM();
   const inferred = state.inferredPreferences;
 
+  // 确定响应语言
+  const lang = inferred?.language || "zh";
+  const isEnglish = lang === "en";
+
   if (state.books.length === 0) {
     const message = new AIMessage(
-      "抱歉，没有找到符合条件的书籍。您可以尝试调整搜索条件或换一些关键词。"
+      isEnglish 
+        ? "Sorry, no books found matching your criteria. Try adjusting your search terms."
+        : "抱歉，没有找到符合条件的书籍。您可以尝试调整搜索条件或换一些关键词。"
     );
     return {
       messages: [message],
@@ -366,14 +425,25 @@ export async function responseNode(
   // 生成推荐说明
   const booksInfo = state.books
     .slice(0, 5)
-    .map((b, i) => `${i + 1}. 《${b.title}》 - ${b.authors.join(", ")}`)
+    .map((b, i) => `${i + 1}. "${b.title}" - ${b.authors.join(", ")}`)
     .join("\n");
 
   const inferredInfo = inferred
-    ? `推断的偏好: 主题=${inferred.topic}, 难度=${inferred.levelLabel}, 语言=${inferred.languageLabel}`
+    ? (isEnglish 
+        ? `Inferred preferences: Topic=${inferred.topic}, Level=${inferred.levelLabel}, Language=${inferred.languageLabel}`
+        : `推断的偏好: 主题=${inferred.topic}, 难度=${inferred.levelLabel}, 语言=${inferred.languageLabel}`)
     : "";
 
-  const prompt = `根据以下信息，生成简短的推荐说明。
+  const prompt = isEnglish
+    ? `Based on the following information, generate a brief recommendation.
+
+${inferredInfo}
+Search query: ${state.searchQuery}
+Books found:
+${booksInfo}
+
+Please explain in 1-2 sentences why these books are suitable for the user. Keep it concise and friendly, don't list the books again.`
+    : `根据以下信息，生成简短的推荐说明。
 
 ${inferredInfo}
 搜索词: ${state.searchQuery}
@@ -384,7 +454,7 @@ ${booksInfo}
 
   try {
     const response = await llm.invoke([
-      new SystemMessage(SYSTEM_PROMPT_DIRECT),
+      new SystemMessage(lang === "en" ? SYSTEM_PROMPTS.en : SYSTEM_PROMPTS.zh),
       new HumanMessage(prompt),
     ]);
 
@@ -395,7 +465,9 @@ ${booksInfo}
   } catch (error) {
     // 如果生成失败，使用默认消息
     const message = new AIMessage(
-      `为您找到了 ${state.books.length} 本${inferred?.levelLabel || ""}${inferred?.topic || "相关"}书籍，请查看下方推荐。`
+      isEnglish
+        ? `Found ${state.books.length} ${inferred?.levelLabel || ""} ${inferred?.topic || "related"} books for you.`
+        : `为您找到了 ${state.books.length} 本${inferred?.levelLabel || ""}${inferred?.topic || "相关"}书籍，请查看下方推荐。`
     );
     return {
       messages: [message],
@@ -420,9 +492,12 @@ export function routeAfterConversation(state: BookAgentStateType): string {
   }
 
   // 如果有工具调用，执行工具
-  if ("tool_calls" in lastMessage && lastMessage.tool_calls?.length) {
-    console.log("[Router] Routing to tools");
-    return "tools";
+  if ("tool_calls" in lastMessage) {
+    const aiMessage = lastMessage as AIMessage;
+    if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
+      console.log("[Router] Routing to tools");
+      return "tools";
+    }
   }
 
   // 否则结束（等待用户输入）

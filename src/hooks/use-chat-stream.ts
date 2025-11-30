@@ -202,12 +202,13 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
       abortControllerRef.current = new AbortController();
 
       try {
-        const response = await fetch("/api/chat-v2", {
+        const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message,
             history,
+            mode: "agent",
             state: chatState,
             adjustedPreferences,
           }),
@@ -262,12 +263,13 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
       setIsLoading(true);
 
       try {
-        const response = await fetch("/api/chat-v2", {
+        const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: lastMessageRef.current,
             history: [],
+            mode: "agent",
             adjustedPreferences: {
               ...inferredPreferences,
               ...adjustedPreferences,
