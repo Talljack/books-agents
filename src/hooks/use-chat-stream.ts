@@ -125,7 +125,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
     async (preferences: InferredPreferences): Promise<SearchResult | null> => {
       setIsLoading(true);
       setIsSearching(true);
-      setChatState((prev) => prev ? { ...prev, phase: "searching" } : null);
+      setChatState((prev) => (prev ? { ...prev, phase: "searching" } : null));
 
       try {
         const response = await fetch("/api/confirm-search", {
@@ -148,7 +148,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
         }
 
         setInferredPreferences(data.preferences);
-        setChatState((prev) => prev ? { ...prev, phase: "complete" } : null);
+        setChatState((prev) => (prev ? { ...prev, phase: "complete" } : null));
 
         options.onComplete?.();
 
@@ -173,15 +173,12 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   /**
    * 调整偏好（不立即搜索）
    */
-  const adjustPreferences = useCallback(
-    (adjusted: Partial<InferredPreferences>) => {
-      setInferredPreferences((prev) => {
-        if (!prev) return null;
-        return { ...prev, ...adjusted };
-      });
-    },
-    []
-  );
+  const adjustPreferences = useCallback((adjusted: Partial<InferredPreferences>) => {
+    setInferredPreferences((prev) => {
+      if (!prev) return null;
+      return { ...prev, ...adjusted };
+    });
+  }, []);
 
   /**
    * 旧版兼容：发送消息并立即搜索
@@ -191,7 +188,11 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
       message: string,
       history: ChatMessage[],
       adjustedPreferences?: Partial<InferredPreferences>
-    ): Promise<{ message: string; books?: Book[]; inferredPreferences?: InferredPreferences } | null> => {
+    ): Promise<{
+      message: string;
+      books?: Book[];
+      inferredPreferences?: InferredPreferences;
+    } | null> => {
       setIsLoading(true);
       lastMessageRef.current = message;
 
@@ -257,7 +258,11 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   const researchWithPreferences = useCallback(
     async (
       adjustedPreferences: Partial<InferredPreferences>
-    ): Promise<{ message: string; books?: Book[]; inferredPreferences?: InferredPreferences } | null> => {
+    ): Promise<{
+      message: string;
+      books?: Book[];
+      inferredPreferences?: InferredPreferences;
+    } | null> => {
       if (!lastMessageRef.current) return null;
 
       setIsLoading(true);

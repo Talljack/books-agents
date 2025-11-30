@@ -14,10 +14,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (!preferences) {
-      return NextResponse.json(
-        { error: "Preferences are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Preferences are required" }, { status: 400 });
     }
 
     console.log("[ConfirmSearch] Original message:", message);
@@ -88,12 +85,12 @@ ${booksInfo}
       } catch (llmError) {
         console.error("[ConfirmSearch] LLM error:", llmError);
         responseMessage = isEnglish
-          ? (preferences.isFiction
-              ? `Found ${books.length} ${preferences.topic} books for you`
-              : `Found ${books.length} ${preferences.levelLabel} level ${preferences.topic} books for you`)
-          : (preferences.isFiction
-              ? `为您找到了 ${books.length} 本${preferences.topic}相关书籍`
-              : `为您找到了 ${books.length} 本${preferences.levelLabel}级别的${preferences.topic}书籍`);
+          ? preferences.isFiction
+            ? `Found ${books.length} ${preferences.topic} books for you`
+            : `Found ${books.length} ${preferences.levelLabel} level ${preferences.topic} books for you`
+          : preferences.isFiction
+            ? `为您找到了 ${books.length} 本${preferences.topic}相关书籍`
+            : `为您找到了 ${books.length} 本${preferences.levelLabel}级别的${preferences.topic}书籍`;
       }
     } else {
       responseMessage = isEnglish
@@ -119,4 +116,3 @@ ${booksInfo}
     );
   }
 }
-

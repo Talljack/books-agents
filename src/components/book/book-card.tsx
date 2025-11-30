@@ -18,16 +18,16 @@ interface BookCardProps {
 }
 
 // 书籍封面组件 - 处理豆瓣图片的特殊情况
-function BookCover({ 
-  src, 
-  alt, 
+function BookCover({
+  src,
+  alt,
   className,
   fill,
   sizes,
-  isDouban 
-}: { 
-  src: string; 
-  alt: string; 
+  isDouban,
+}: {
+  src: string;
+  alt: string;
   className?: string;
   fill?: boolean;
   sizes?: string;
@@ -35,7 +35,7 @@ function BookCover({
 }) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  
+
   // 豆瓣图片或加载失败时使用普通 img 标签
   if (isDouban || error) {
     return (
@@ -55,13 +55,11 @@ function BookCover({
           referrerPolicy="no-referrer"
           crossOrigin="anonymous"
         />
-        {!loaded && !error && (
-          <div className="absolute inset-0 animate-pulse bg-muted" />
-        )}
+        {!loaded && !error && <div className="absolute inset-0 animate-pulse bg-muted" />}
       </div>
     );
   }
-  
+
   // 非豆瓣图片使用 Next.js Image
   return (
     <Image
@@ -85,7 +83,10 @@ const sourceConfig: Record<string, { label: string; color: string }> = {
 
 export function BookCard({ book, className, compact = false }: BookCardProps) {
   const coverUrl = getBookCoverUrl(book);
-  const sourceInfo = sourceConfig[book.source] || { label: book.source, color: "bg-gray-100 text-gray-700" };
+  const sourceInfo = sourceConfig[book.source] || {
+    label: book.source,
+    color: "bg-gray-100 text-gray-700",
+  };
   const isDouban = book.source === "douban" || coverUrl.includes("doubanio.com");
 
   if (compact) {
@@ -99,8 +100,18 @@ export function BookCard({ book, className, compact = false }: BookCardProps) {
         <CardContent className="p-3">
           <div className="flex gap-3">
             {/* Small Cover */}
-            <Link href={`/book/${encodeURIComponent(book.id)}`} className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded bg-muted">
-              <BookCover src={coverUrl} alt={book.title} fill className="object-cover" sizes="48px" isDouban={isDouban} />
+            <Link
+              href={`/book/${encodeURIComponent(book.id)}`}
+              className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded bg-muted"
+            >
+              <BookCover
+                src={coverUrl}
+                alt={book.title}
+                fill
+                className="object-cover"
+                sizes="48px"
+                isDouban={isDouban}
+              />
             </Link>
             {/* Info */}
             <div className="min-w-0 flex-1">
@@ -117,7 +128,9 @@ export function BookCard({ book, className, compact = false }: BookCardProps) {
                 {(book.averageRating || book.doubanRating) && (
                   <div className="flex items-center gap-1">
                     <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs">{(book.doubanRating || book.averageRating)?.toFixed(1)}</span>
+                    <span className="text-xs">
+                      {(book.doubanRating || book.averageRating)?.toFixed(1)}
+                    </span>
                   </div>
                 )}
                 {/* 在线阅读标记 */}
@@ -145,7 +158,10 @@ export function BookCard({ book, className, compact = false }: BookCardProps) {
       <CardContent className="p-0">
         <div className="flex flex-col sm:flex-row">
           {/* Book Cover */}
-          <Link href={`/book/${encodeURIComponent(book.id)}`} className="relative h-48 flex-shrink-0 bg-muted sm:h-auto sm:w-32">
+          <Link
+            href={`/book/${encodeURIComponent(book.id)}`}
+            className="relative h-48 flex-shrink-0 bg-muted sm:h-auto sm:w-32"
+          >
             <BookCover
               src={coverUrl}
               alt={book.title}
@@ -237,7 +253,11 @@ export function BookCard({ book, className, compact = false }: BookCardProps) {
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Button size="sm" variant="outline" className="h-6 gap-1 px-2 text-xs text-purple-600 hover:bg-purple-50">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 gap-1 px-2 text-xs text-purple-600 hover:bg-purple-50"
+                  >
                     <BookMarked className="h-3 w-3" />
                     在线阅读
                     <ExternalLink className="h-2 w-2" />

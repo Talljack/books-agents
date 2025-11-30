@@ -18,27 +18,21 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const config: UserModelConfig = await request.json();
-    
+
     // 验证配置
     const provider = getProviderConfig(config.provider);
     if (!provider) {
-      return NextResponse.json(
-        { success: false, error: "未知的服务商" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "未知的服务商" }, { status: 400 });
     }
 
     // 如果需要 API Key 但没有提供
     if (provider.requiresApiKey && !config.apiKey) {
-      return NextResponse.json(
-        { success: false, error: "此服务商需要 API Key" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "此服务商需要 API Key" }, { status: 400 });
     }
 
     // 测试连接
     const testResult = await testModelConnection(config);
-    
+
     return NextResponse.json(testResult);
   } catch (error) {
     console.error("[ModelConfig] Test error:", error);
@@ -52,8 +46,9 @@ export async function POST(request: NextRequest) {
 /**
  * 测试模型连接
  */
-async function testModelConnection(config: UserModelConfig): Promise<{ success: boolean; error?: string; latency?: number }> {
-  
+async function testModelConnection(
+  config: UserModelConfig
+): Promise<{ success: boolean; error?: string; latency?: number }> {
   try {
     switch (config.provider) {
       case "ollama":
@@ -73,9 +68,9 @@ async function testModelConnection(config: UserModelConfig): Promise<{ success: 
         return { success: false, error: "不支持的服务商" };
     }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "连接失败" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "连接失败",
     };
   }
 }
@@ -83,33 +78,38 @@ async function testModelConnection(config: UserModelConfig): Promise<{ success: 
 /**
  * 测试 Ollama 连接
  */
-async function testOllama(config: UserModelConfig): Promise<{ success: boolean; error?: string; latency?: number; models?: string[] }> {
+async function testOllama(
+  config: UserModelConfig
+): Promise<{ success: boolean; error?: string; latency?: number; models?: string[] }> {
   const baseUrl = config.ollamaHost || config.baseUrl || "http://localhost:11434";
   const startTime = Date.now();
-  
+
   try {
     // 先检查服务是否运行
     const tagsResponse = await fetch(`${baseUrl}/api/tags`, {
       method: "GET",
       signal: AbortSignal.timeout(5000),
     });
-    
+
     if (!tagsResponse.ok) {
       return { success: false, error: "Ollama 服务未运行" };
     }
-    
+
     const tagsData = await tagsResponse.json();
     const availableModels = tagsData.models?.map((m: { name: string }) => m.name) || [];
-    
+
     // 检查指定模型是否存在
-    if (config.model && !availableModels.some((m: string) => m.includes(config.model.split(":")[0]))) {
-      return { 
-        success: false, 
+    if (
+      config.model &&
+      !availableModels.some((m: string) => m.includes(config.model.split(":")[0]))
+    ) {
+      return {
+        success: false,
         error: `模型 ${config.model} 未安装。可用模型: ${availableModels.join(", ")}`,
         models: availableModels,
       };
     }
-    
+
     // 测试生成
     const generateResponse = await fetch(`${baseUrl}/api/generate`, {
       method: "POST",
@@ -121,12 +121,12 @@ async function testOllama(config: UserModelConfig): Promise<{ success: boolean; 
       }),
       signal: AbortSignal.timeout(30000),
     });
-    
+
     if (!generateResponse.ok) {
       const error = await generateResponse.text();
       return { success: false, error: `生成测试失败: ${error}` };
     }
-    
+
     const latency = Date.now() - startTime;
     return { success: true, latency, models: availableModels };
   } catch (error) {
@@ -140,15 +140,17 @@ async function testOllama(config: UserModelConfig): Promise<{ success: boolean; 
 /**
  * 测试 OpenAI 连接
  */
-async function testOpenAI(config: UserModelConfig): Promise<{ success: boolean; error?: string; latency?: number }> {
+async function testOpenAI(
+  config: UserModelConfig
+): Promise<{ success: boolean; error?: string; latency?: number }> {
   const startTime = Date.now();
-  
+
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         model: config.model || "gpt-4o-mini",
@@ -157,12 +159,12 @@ async function testOpenAI(config: UserModelConfig): Promise<{ success: boolean; 
       }),
       signal: AbortSignal.timeout(30000),
     });
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       return { success: false, error: error.error?.message || `API 错误: ${response.status}` };
     }
-    
+
     const latency = Date.now() - startTime;
     return { success: true, latency };
   } catch (error) {
@@ -173,9 +175,11 @@ async function testOpenAI(config: UserModelConfig): Promise<{ success: boolean; 
 /**
  * 测试 Anthropic 连接
  */
-async function testAnthropic(config: UserModelConfig): Promise<{ success: boolean; error?: string; latency?: number }> {
+async function testAnthropic(
+  config: UserModelConfig
+): Promise<{ success: boolean; error?: string; latency?: number }> {
   const startTime = Date.now();
-  
+
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -191,12 +195,12 @@ async function testAnthropic(config: UserModelConfig): Promise<{ success: boolea
       }),
       signal: AbortSignal.timeout(30000),
     });
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       return { success: false, error: error.error?.message || `API 错误: ${response.status}` };
     }
-    
+
     const latency = Date.now() - startTime;
     return { success: true, latency };
   } catch (error) {
@@ -207,15 +211,17 @@ async function testAnthropic(config: UserModelConfig): Promise<{ success: boolea
 /**
  * 测试 OpenRouter 连接
  */
-async function testOpenRouter(config: UserModelConfig): Promise<{ success: boolean; error?: string; latency?: number }> {
+async function testOpenRouter(
+  config: UserModelConfig
+): Promise<{ success: boolean; error?: string; latency?: number }> {
   const startTime = Date.now();
-  
+
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
         "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
         "X-Title": "BookFinder AI",
       },
@@ -226,12 +232,12 @@ async function testOpenRouter(config: UserModelConfig): Promise<{ success: boole
       }),
       signal: AbortSignal.timeout(30000),
     });
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       return { success: false, error: error.error?.message || `API 错误: ${response.status}` };
     }
-    
+
     const latency = Date.now() - startTime;
     return { success: true, latency };
   } catch (error) {
@@ -242,21 +248,23 @@ async function testOpenRouter(config: UserModelConfig): Promise<{ success: boole
 /**
  * 测试 OpenAI 兼容接口（DeepSeek, Moonshot, 智谱等）
  */
-async function testOpenAICompatible(config: UserModelConfig): Promise<{ success: boolean; error?: string; latency?: number }> {
+async function testOpenAICompatible(
+  config: UserModelConfig
+): Promise<{ success: boolean; error?: string; latency?: number }> {
   const startTime = Date.now();
   const provider = getProviderConfig(config.provider);
   const baseUrl = config.baseUrl || provider?.baseUrl;
-  
+
   if (!baseUrl) {
     return { success: false, error: "未配置 API 地址" };
   }
-  
+
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         model: config.model,
@@ -265,16 +273,15 @@ async function testOpenAICompatible(config: UserModelConfig): Promise<{ success:
       }),
       signal: AbortSignal.timeout(30000),
     });
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       return { success: false, error: error.error?.message || `API 错误: ${response.status}` };
     }
-    
+
     const latency = Date.now() - startTime;
     return { success: true, latency };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "连接失败" };
   }
 }
-

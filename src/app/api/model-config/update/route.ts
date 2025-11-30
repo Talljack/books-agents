@@ -9,23 +9,20 @@ import { setServerConfig, getCurrentConfig } from "@/lib/llm/factory";
 export async function POST(request: NextRequest) {
   try {
     const config: UserModelConfig = await request.json();
-    
+
     // 更新 LLM 工厂配置
     setServerConfig(config);
-    
+
     console.log("[ModelConfig] Updated config:", {
       provider: config.provider,
       model: config.model,
       hasApiKey: !!config.apiKey,
     });
-    
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[ModelConfig] Update error:", error);
-    return NextResponse.json(
-      { success: false, error: "更新失败" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "更新失败" }, { status: 500 });
   }
 }
 
@@ -43,4 +40,3 @@ export async function GET() {
     },
   });
 }
-

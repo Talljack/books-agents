@@ -52,7 +52,11 @@ const i18n = {
     books: "books",
     levelOptions: [
       { value: "beginner", label: "Beginner", description: "Zero or little experience" },
-      { value: "intermediate", label: "Intermediate", description: "Some experience, want to go deeper" },
+      {
+        value: "intermediate",
+        label: "Intermediate",
+        description: "Some experience, want to go deeper",
+      },
       { value: "advanced", label: "Advanced", description: "Experienced, want to master" },
     ],
     languageOptions: [
@@ -73,7 +77,8 @@ export function PreferenceChips({ preferences, onAdjust, isLoading }: Preference
 
   const handleLevelChange = (level: typeof selectedLevel) => {
     setSelectedLevel(level);
-    const levelLabel = t.levelOptions.find((o) => o.value === level)?.label || t.levelOptions[0].label;
+    const levelLabel =
+      t.levelOptions.find((o) => o.value === level)?.label || t.levelOptions[0].label;
     onAdjust({ level, levelLabel });
   };
 
@@ -81,7 +86,9 @@ export function PreferenceChips({ preferences, onAdjust, isLoading }: Preference
     setSelectedLanguage(language);
     const newLang = language === "en" ? "en" : "zh";
     const newT = i18n[newLang];
-    const languageLabel = newT.languageOptions.find((o) => o.value === language)?.label || newT.languageOptions[0].label;
+    const languageLabel =
+      newT.languageOptions.find((o) => o.value === language)?.label ||
+      newT.languageOptions[0].label;
     onAdjust({ language, languageLabel });
   };
 

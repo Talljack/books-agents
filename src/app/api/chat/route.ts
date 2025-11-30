@@ -65,9 +65,9 @@ interface ChatState {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      message, 
-      history = [], 
+    const {
+      message,
+      history = [],
       mode = "basic",
       state,
       adjustedPreferences,
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[Chat API] Error:", error);
     return NextResponse.json(
-      { 
+      {
         error: error instanceof Error ? error.message : "Chat failed",
         message: "Sorry, something went wrong. Please try again.",
       },
@@ -107,11 +107,11 @@ export async function POST(request: NextRequest) {
  */
 async function handleBasicMode(message: string, history: ChatMessage[]) {
   const lang = detectLanguage(message);
-  
+
   try {
     // 使用 LLM 工厂创建模型
     const llm = createLLM();
-    
+
     // Build conversation history
     const messages: BaseMessage[] = [
       new SystemMessage(SYSTEM_PROMPTS[lang]),
@@ -143,21 +143,33 @@ async function handleBasicMode(message: string, history: ChatMessage[]) {
       // Perform the search - 根据语言选择搜索源
       try {
         const isChinese = isChineseQuery(searchQuery);
-        
+
         let allBooks: Book[] = [];
-        
+
         if (isChinese) {
           // 中文搜索：优先豆瓣
           const [doubanResults, googleResults] = await Promise.all([
             searchDoubanBooks(searchQuery, 10).catch(() => ({ books: [] })),
-            searchGoogleBooks(searchQuery, undefined, 6).catch(() => ({ books: [], totalItems: 0, query: searchQuery })),
+            searchGoogleBooks(searchQuery, undefined, 6).catch(() => ({
+              books: [],
+              totalItems: 0,
+              query: searchQuery,
+            })),
           ]);
           allBooks = [...doubanResults.books, ...googleResults.books];
         } else {
           // 英文搜索：Google + Open Library
           const [googleResults, openLibraryResults] = await Promise.all([
-            searchGoogleBooks(searchQuery, undefined, 8).catch(() => ({ books: [], totalItems: 0, query: searchQuery })),
-            searchOpenLibrary(searchQuery, 6).catch(() => ({ books: [], totalItems: 0, query: searchQuery })),
+            searchGoogleBooks(searchQuery, undefined, 8).catch(() => ({
+              books: [],
+              totalItems: 0,
+              query: searchQuery,
+            })),
+            searchOpenLibrary(searchQuery, 6).catch(() => ({
+              books: [],
+              totalItems: 0,
+              query: searchQuery,
+            })),
           ]);
           allBooks = [...googleResults.books, ...openLibraryResults.books];
         }
@@ -174,24 +186,27 @@ async function handleBasicMode(message: string, history: ChatMessage[]) {
           .slice(0, 12);
 
         if (books.length > 0) {
-          const foundMsg = lang === "zh" 
-            ? `为您找到了 ${books.length} 本书籍：`
-            : `Here are ${books.length} books I found for you:`;
+          const foundMsg =
+            lang === "zh"
+              ? `为您找到了 ${books.length} 本书籍：`
+              : `Here are ${books.length} books I found for you:`;
           cleanResponse = cleanResponse.replace(
             lang === "zh" ? /正在搜索书籍\.\.\./ : /Searching for books\.\.\./,
             foundMsg
           );
         } else {
-          const notFoundMsg = lang === "zh"
-            ? "抱歉，没有找到匹配的书籍。请尝试其他关键词。"
-            : "Unfortunately, I couldn't find any books matching those criteria. Could you try different keywords?";
+          const notFoundMsg =
+            lang === "zh"
+              ? "抱歉，没有找到匹配的书籍。请尝试其他关键词。"
+              : "Unfortunately, I couldn't find any books matching those criteria. Could you try different keywords?";
           cleanResponse += ` ${notFoundMsg}`;
         }
       } catch (searchError) {
         console.error("Search error:", searchError);
-        const errorMsg = lang === "zh"
-          ? "搜索时出现问题，请重试。"
-          : "Sorry, I had trouble searching for books. Please try again.";
+        const errorMsg =
+          lang === "zh"
+            ? "搜索时出现问题，请重试。"
+            : "Sorry, I had trouble searching for books. Please try again.";
         cleanResponse += ` ${errorMsg}`;
       }
     }
@@ -216,7 +231,7 @@ async function handleAgentMode(
   adjustedPreferences?: Partial<InferredPreferences>
 ) {
   const lang = detectLanguage(message);
-  
+
   console.log("[API] Agent mode - message:", message);
   console.log("[API] History length:", history?.length || 0);
   console.log("[API] Adjusted preferences:", adjustedPreferences);
@@ -230,9 +245,14 @@ async function handleAgentMode(
   let effectiveMessage = message;
   if (adjustedPreferences) {
     const level = adjustedPreferences.level || "beginner";
-    const levelLabel = lang === "zh"
-      ? (level === "beginner" ? "入门" : level === "intermediate" ? "进阶" : "高级")
-      : level;
+    const levelLabel =
+      lang === "zh"
+        ? level === "beginner"
+          ? "入门"
+          : level === "intermediate"
+            ? "进阶"
+            : "高级"
+        : level;
     effectiveMessage = `${adjustedPreferences.topic || message} ${levelLabel}`;
     console.log("[API] Effective message with adjustments:", effectiveMessage);
   }
@@ -253,13 +273,12 @@ async function handleAgentMode(
   );
 
   const lastAiMessage = aiMessages[aiMessages.length - 1];
-  const defaultMsg = lang === "zh" 
-    ? "抱歉，我遇到了一些问题。请再试一次。"
-    : "Sorry, I encountered an issue. Please try again.";
+  const defaultMsg =
+    lang === "zh"
+      ? "抱歉，我遇到了一些问题。请再试一次。"
+      : "Sorry, I encountered an issue. Please try again.";
   const responseMessage =
-    typeof lastAiMessage?.content === "string"
-      ? lastAiMessage.content
-      : defaultMsg;
+    typeof lastAiMessage?.content === "string" ? lastAiMessage.content : defaultMsg;
 
   return NextResponse.json({
     message: responseMessage,

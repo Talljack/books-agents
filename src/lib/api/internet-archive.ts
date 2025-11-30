@@ -141,18 +141,14 @@ export async function searchInternetArchive(
  */
 export async function checkReadableOnline(identifier: string): Promise<boolean> {
   try {
-    const response = await fetch(
-      `https://archive.org/metadata/${identifier}/files`
-    );
+    const response = await fetch(`https://archive.org/metadata/${identifier}/files`);
     if (!response.ok) return false;
 
     const data = await response.json();
     // 检查是否有可读取的格式
     const readableFormats = ["pdf", "epub", "djvu", "txt"];
     return data.result?.some((file: { format?: string }) =>
-      readableFormats.some((fmt) =>
-        file.format?.toLowerCase().includes(fmt)
-      )
+      readableFormats.some((fmt) => file.format?.toLowerCase().includes(fmt))
     );
   } catch {
     return false;

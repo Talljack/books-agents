@@ -31,7 +31,7 @@ export function getCurrentConfig(): UserModelConfig {
   if (serverConfig) {
     return serverConfig;
   }
-  
+
   // 从环境变量检测
   if (process.env.USE_OLLAMA === "true" || process.env.OLLAMA_BASE_URL) {
     return {
@@ -40,7 +40,7 @@ export function getCurrentConfig(): UserModelConfig {
       ollamaHost: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
     };
   }
-  
+
   if (process.env.OPENROUTER_API_KEY) {
     return {
       provider: "openrouter",
@@ -48,7 +48,7 @@ export function getCurrentConfig(): UserModelConfig {
       apiKey: process.env.OPENROUTER_API_KEY,
     };
   }
-  
+
   if (process.env.OPENAI_API_KEY) {
     return {
       provider: "openai",
@@ -56,7 +56,7 @@ export function getCurrentConfig(): UserModelConfig {
       apiKey: process.env.OPENAI_API_KEY,
     };
   }
-  
+
   if (process.env.ANTHROPIC_API_KEY) {
     return {
       provider: "anthropic",
@@ -64,7 +64,7 @@ export function getCurrentConfig(): UserModelConfig {
       apiKey: process.env.ANTHROPIC_API_KEY,
     };
   }
-  
+
   if (process.env.DEEPSEEK_API_KEY) {
     return {
       provider: "deepseek",
@@ -72,7 +72,7 @@ export function getCurrentConfig(): UserModelConfig {
       apiKey: process.env.DEEPSEEK_API_KEY,
     };
   }
-  
+
   // 默认使用 Ollama
   return DEFAULT_CONFIG;
 }
@@ -82,29 +82,29 @@ export function getCurrentConfig(): UserModelConfig {
  */
 export function createLLM(config?: UserModelConfig): BaseChatModel {
   const cfg = config || getCurrentConfig();
-  
+
   console.log(`[LLM Factory] Creating LLM: ${cfg.provider} / ${cfg.model}`);
-  
+
   switch (cfg.provider) {
     // 本地模型
     case "ollama":
       return createOllamaLLM(cfg);
-    
+
     // 原生 SDK 支持的服务商
     case "openai":
       return createOpenAILLM(cfg);
-    
+
     case "anthropic":
       return createAnthropicLLM(cfg);
-    
+
     // Google Gemini (使用 OpenAI 兼容接口)
     case "google":
       return createGoogleLLM(cfg);
-    
+
     // 聚合平台
     case "openrouter":
       return createOpenRouterLLM(cfg);
-    
+
     // OpenAI 兼容的服务商
     case "deepseek":
     case "mistral":
@@ -119,10 +119,10 @@ export function createLLM(config?: UserModelConfig): BaseChatModel {
     case "minimax":
     case "siliconflow":
       return createOpenAICompatibleLLM(cfg);
-    
+
     case "custom":
       return createCustomLLM(cfg);
-    
+
     default:
       console.warn(`[LLM Factory] Unknown provider: ${cfg.provider}, falling back to Ollama`);
       return createOllamaLLM(DEFAULT_CONFIG);
@@ -207,7 +207,7 @@ function createGoogleLLM(config: UserModelConfig): BaseChatModel {
 function createOpenAICompatibleLLM(config: UserModelConfig): BaseChatModel {
   const provider = getProviderConfig(config.provider);
   const baseUrl = config.baseUrl || provider?.baseUrl;
-  
+
   return new ChatOpenAI({
     modelName: config.model,
     temperature: 0.7,
@@ -226,7 +226,7 @@ function createCustomLLM(config: UserModelConfig): BaseChatModel {
   if (!config.baseUrl) {
     throw new Error("自定义服务商需要配置 API 地址");
   }
-  
+
   return new ChatOpenAI({
     modelName: config.model,
     temperature: 0.7,
@@ -248,4 +248,3 @@ export function getLLMInfo(): { provider: string; model: string } {
     model: config.model,
   };
 }
-

@@ -7,8 +7,8 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="border-b bg-white dark:bg-gray-800">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
           <Link href="/" className="text-xl font-bold">
             📚 BookFinder AI
           </Link>
@@ -17,12 +17,11 @@ export default function SettingsPage() {
           </Link>
         </div>
       </header>
-      
+
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto py-8 px-4">
+      <main className="mx-auto max-w-4xl px-4 py-8">
         <ModelSettings />
       </main>
     </div>
   );
 }
-

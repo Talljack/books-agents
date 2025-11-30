@@ -31,11 +31,14 @@ interface ChatInterfaceProps {
 // 多语言配置
 const i18n = {
   zh: {
-    welcome: '你好！告诉我你想找什么书，我会先理解你的需求，让你确认后再搜索。\n\n例如：\n• "我想学习Python"\n• "推荐机器学习入门书籍"\n• "有什么好看的科幻小说"',
-    welcomeBasic: '你好！我是你的图书助手。告诉我你想找什么书籍，我会帮你找到最合适的。\n\n例如：\n• "我想学习AI"\n• "推荐科幻小说"\n• "Python入门书籍"',
+    welcome:
+      '你好！告诉我你想找什么书，我会先理解你的需求，让你确认后再搜索。\n\n例如：\n• "我想学习Python"\n• "推荐机器学习入门书籍"\n• "有什么好看的科幻小说"',
+    welcomeBasic:
+      '你好！我是你的图书助手。告诉我你想找什么书籍，我会帮你找到最合适的。\n\n例如：\n• "我想学习AI"\n• "推荐科幻小说"\n• "Python入门书籍"',
     analyzing: "正在理解您的需求...",
     thinking: "思考中...",
-    searchingFor: (topic: string, level?: string) => level ? `好的，正在为您搜索${level}级别的${topic}书籍...` : `好的，正在为您搜索${topic}...`,
+    searchingFor: (topic: string, level?: string) =>
+      level ? `好的，正在为您搜索${level}级别的${topic}书籍...` : `好的，正在为您搜索${topic}...`,
     cancelled: "好的，已取消搜索。请告诉我您想找什么书籍？",
     error: "抱歉，出现了问题。请再试一次。",
     searchError: "抱歉，搜索时出现了问题。请再试一次。",
@@ -52,11 +55,16 @@ const i18n = {
     },
   },
   en: {
-    welcome: 'Hello! Tell me what books you\'re looking for. I\'ll understand your needs first, then confirm before searching.\n\nFor example:\n• "I want to learn Python"\n• "Recommend machine learning books for beginners"\n• "Any good sci-fi novels?"',
-    welcomeBasic: 'Hi! I\'m your book discovery assistant. Tell me what kind of books you\'re looking for.\n\nFor example:\n• "I want to learn about AI"\n• "Looking for sci-fi novels"\n• "Python beginner books"',
+    welcome:
+      'Hello! Tell me what books you\'re looking for. I\'ll understand your needs first, then confirm before searching.\n\nFor example:\n• "I want to learn Python"\n• "Recommend machine learning books for beginners"\n• "Any good sci-fi novels?"',
+    welcomeBasic:
+      'Hi! I\'m your book discovery assistant. Tell me what kind of books you\'re looking for.\n\nFor example:\n• "I want to learn about AI"\n• "Looking for sci-fi novels"\n• "Python beginner books"',
     analyzing: "Understanding your needs...",
     thinking: "Thinking...",
-    searchingFor: (topic: string, level?: string) => level ? `OK, searching for ${level} level ${topic} books...` : `OK, searching for ${topic}...`,
+    searchingFor: (topic: string, level?: string) =>
+      level
+        ? `OK, searching for ${level} level ${topic} books...`
+        : `OK, searching for ${topic}...`,
     cancelled: "OK, search cancelled. What books are you looking for?",
     error: "Sorry, there was a problem. Please try again.",
     searchError: "Sorry, there was a problem searching. Please try again.",
@@ -83,7 +91,7 @@ function detectLanguage(text: string): "zh" | "en" {
 export function ChatInterface({ onBooksFound, mode = "agent" }: ChatInterfaceProps) {
   const [userLang, setUserLang] = useState<"zh" | "en">("zh");
   const t = i18n[userLang];
-  
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -263,7 +271,10 @@ export function ChatInterface({ onBooksFound, mode = "agent" }: ChatInterfacePro
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: "assistant",
-      content: t.searchingFor(preferences.topic, preferences.isFiction ? undefined : preferences.levelLabel),
+      content: t.searchingFor(
+        preferences.topic,
+        preferences.isFiction ? undefined : preferences.levelLabel
+      ),
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, confirmMessage]);
@@ -285,11 +296,7 @@ export function ChatInterface({ onBooksFound, mode = "agent" }: ChatInterfacePro
       );
     } else {
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === confirmMessage.id
-            ? { ...m, content: t.searchError }
-            : m
-        )
+        prev.map((m) => (m.id === confirmMessage.id ? { ...m, content: t.searchError } : m))
       );
     }
   };
@@ -317,7 +324,10 @@ export function ChatInterface({ onBooksFound, mode = "agent" }: ChatInterfacePro
     adjustPreferences(adjusted);
   };
 
-  const handlePreferenceAdjust = async (messageId: string, adjusted: Partial<InferredPreferences>) => {
+  const handlePreferenceAdjust = async (
+    messageId: string,
+    adjusted: Partial<InferredPreferences>
+  ) => {
     const result = await researchWithPreferences(adjusted);
 
     if (result) {
@@ -389,7 +399,11 @@ export function ChatInterface({ onBooksFound, mode = "agent" }: ChatInterfacePro
                   message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                 }`}
               >
-                {message.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                {message.role === "user" ? (
+                  <User className="h-4 w-4" />
+                ) : (
+                  <Bot className="h-4 w-4" />
+                )}
               </div>
 
               {/* Message content */}
@@ -403,15 +417,18 @@ export function ChatInterface({ onBooksFound, mode = "agent" }: ChatInterfacePro
                 </Card>
 
                 {/* Preference chips for adjustment (after search) - Agent mode only */}
-                {mode === "agent" && message.inferredPreferences && message.books && message.books.length > 0 && (
-                  <div className="mt-2">
-                    <PreferenceChips
-                      preferences={message.inferredPreferences}
-                      onAdjust={(adjusted) => handlePreferenceAdjust(message.id, adjusted)}
-                      isLoading={isLoading}
-                    />
-                  </div>
-                )}
+                {mode === "agent" &&
+                  message.inferredPreferences &&
+                  message.books &&
+                  message.books.length > 0 && (
+                    <div className="mt-2">
+                      <PreferenceChips
+                        preferences={message.inferredPreferences}
+                        onAdjust={(adjusted) => handlePreferenceAdjust(message.id, adjusted)}
+                        isLoading={isLoading}
+                      />
+                    </div>
+                  )}
 
                 {/* Show books if any */}
                 {message.books && message.books.length > 0 && (
@@ -485,16 +502,26 @@ export function ChatInterface({ onBooksFound, mode = "agent" }: ChatInterfacePro
             disabled={currentLoading || (mode === "agent" && !!pendingConfirmation)}
             className="flex-1"
           />
-          <Button type="submit" disabled={currentLoading || !input.trim() || (mode === "agent" && !!pendingConfirmation)}>
-            {currentLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <Button
+            type="submit"
+            disabled={
+              currentLoading || !input.trim() || (mode === "agent" && !!pendingConfirmation)
+            }
+          >
+            {currentLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </form>
         <p className="mt-2 text-center text-xs text-muted-foreground">
           <BookOpen className="mr-1 inline h-3 w-3" />
-          {mode === "agent" 
-            ? (pendingConfirmation ? t.confirmHint : t.inputHint)
-            : t.inputHintBasic
-          }
+          {mode === "agent"
+            ? pendingConfirmation
+              ? t.confirmHint
+              : t.inputHint
+            : t.inputHintBasic}
         </p>
       </div>
     </div>

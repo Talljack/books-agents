@@ -1,6 +1,6 @@
 /**
  * Define the prompt templates for the book recommendation agent.
- * 
+ *
  * 参考 dreams-agent 的设计模式，提供清晰的系统提示词
  */
 
@@ -218,4 +218,3 @@ export function getSearchConfirmationPrompt(
   const levelText = level ? `${level}级别的` : "";
   return `搜索完成！为您找到了 ${booksFound} 本${levelText}"${topic}"相关书籍。以下是最相关和最受欢迎的推荐：`;
 }
-

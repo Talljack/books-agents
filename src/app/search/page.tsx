@@ -5,14 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { 
-  MessageSquare, 
-  Search, 
-  Sparkles, 
-  ArrowLeft,
-  BookOpen,
-  Settings
-} from "lucide-react";
+import { MessageSquare, Search, Sparkles, ArrowLeft, BookOpen, Settings } from "lucide-react";
 import { SearchBox } from "@/components/blocks/search-box";
 import { BookCard } from "@/components/book/book-card";
 import { BookGridSkeleton } from "@/components/book/book-skeleton";
@@ -44,11 +37,11 @@ const modeConfig: Record<Mode, { icon: typeof Sparkles; label: string; descripti
 export default function SearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // 从 URL 参数读取初始模式
   const modeParam = searchParams.get("mode") as Mode | null;
   const initialMode: Mode = modeParam && modeParam in modeConfig ? modeParam : "agent";
-  
+
   const [mode, setMode] = useState<Mode>(initialMode);
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,12 +57,15 @@ export default function SearchPage() {
   }, [searchParams, mode]);
 
   // 切换模式时更新 URL
-  const handleModeChange = useCallback((newMode: Mode) => {
-    setMode(newMode);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("mode", newMode);
-    router.push(`/search?${params.toString()}`, { scroll: false });
-  }, [router, searchParams]);
+  const handleModeChange = useCallback(
+    (newMode: Mode) => {
+      setMode(newMode);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("mode", newMode);
+      router.push(`/search?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
 
   const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
@@ -119,7 +115,10 @@ export default function SearchPage() {
       <header className="sticky top-0 z-50 border-b border-white/5 bg-background/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+            >
               <ArrowLeft className="h-4 w-4" />
               <span className="text-sm">返回首页</span>
             </Link>
@@ -129,7 +128,7 @@ export default function SearchPage() {
               <span className="font-semibold">BookFinder AI</span>
             </div>
           </div>
-          
+
           <Link href="/settings">
             <Button variant="ghost" size="sm" className="gap-2">
               <Settings className="h-4 w-4" />
@@ -147,11 +146,9 @@ export default function SearchPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-2xl font-bold">搜索书籍</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  选择搜索模式，开始发现好书
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">选择搜索模式，开始发现好书</p>
               </div>
-              
+
               {/* Mode Selector */}
               <Card className="inline-flex gap-1 p-1">
                 {(Object.keys(modeConfig) as Mode[]).map((m) => {
@@ -232,12 +229,8 @@ export default function SearchPage() {
                   books.length > 0 ? (
                     <>
                       <div className="mb-6 flex items-center justify-between">
-                        <h2 className="text-xl font-semibold">
-                          「{lastQuery}」的搜索结果
-                        </h2>
-                        <span className="text-sm text-muted-foreground">
-                          共 {books.length} 本
-                        </span>
+                        <h2 className="text-xl font-semibold">「{lastQuery}」的搜索结果</h2>
+                        <span className="text-sm text-muted-foreground">共 {books.length} 本</span>
                       </div>
                       <motion.div
                         initial={{ opacity: 0 }}
@@ -264,9 +257,7 @@ export default function SearchPage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
                         <Search className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <p className="text-lg font-medium">
-                        没有找到「{lastQuery}」相关的书籍
-                      </p>
+                      <p className="text-lg font-medium">没有找到「{lastQuery}」相关的书籍</p>
                       <p className="mt-2 text-sm text-muted-foreground">
                         试试其他关键词或切换到 AI Agent 模式获得更智能的推荐
                       </p>

@@ -67,7 +67,7 @@ export async function searchGoogleBooks(
 ): Promise<SearchResult> {
   // Google Books API 最大返回 40 条结果
   const actualMaxResults = Math.min(maxResults, 40);
-  
+
   const params = new URLSearchParams({
     q: query,
     maxResults: actualMaxResults.toString(),
@@ -85,7 +85,7 @@ export async function searchGoogleBooks(
 
   const url = `${GOOGLE_BOOKS_API_BASE}?${params.toString()}`;
   console.log(`[GoogleBooks] Fetching: ${url.substring(0, 100)}...`);
-  
+
   const response = await fetch(url);
 
   if (!response.ok) {

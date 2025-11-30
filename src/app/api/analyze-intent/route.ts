@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
  */
 function generateUnderstandingText(prefs: InferredPreferences): string {
   const isEnglish = prefs.language === "en";
-  
+
   if (prefs.isFiction) {
     return isEnglish
       ? `I understand you're looking for ${prefs.languageLabel} books about ${prefs.topic}`

@@ -50,8 +50,16 @@ interface LanguageOption {
 
 // 多语言配置
 const i18n: {
-  zh: { levelOptions: LevelOption[]; languageOptions: LanguageOption[]; ui: Record<string, string> };
-  en: { levelOptions: LevelOption[]; languageOptions: LanguageOption[]; ui: Record<string, string> };
+  zh: {
+    levelOptions: LevelOption[];
+    languageOptions: LanguageOption[];
+    ui: Record<string, string>;
+  };
+  en: {
+    levelOptions: LevelOption[];
+    languageOptions: LanguageOption[];
+    ui: Record<string, string>;
+  };
 } = {
   zh: {
     levelOptions: [
@@ -76,7 +84,11 @@ const i18n: {
   en: {
     levelOptions: [
       { value: "beginner", label: "Beginner", description: "Zero or little experience" },
-      { value: "intermediate", label: "Intermediate", description: "Some experience, want to go deeper" },
+      {
+        value: "intermediate",
+        label: "Intermediate",
+        description: "Some experience, want to go deeper",
+      },
       { value: "advanced", label: "Advanced", description: "Experienced, want to master" },
     ],
     languageOptions: [
@@ -104,7 +116,7 @@ export function IntentConfirmation({
   isLoading,
 }: IntentConfirmationProps) {
   const [localPrefs, setLocalPrefs] = useState(preferences);
-  
+
   // 根据当前语言选择对应的文案
   const lang = localPrefs.language === "en" ? "en" : "zh";
   const t = i18n[lang];
@@ -121,7 +133,9 @@ export function IntentConfirmation({
   const handleLanguageChange = (language: typeof localPrefs.language) => {
     const newLang = language === "en" ? "en" : "zh";
     const newT = i18n[newLang];
-    const languageLabel = newT.languageOptions.find((o) => o.value === language)?.label || newT.languageOptions[0].label;
+    const languageLabel =
+      newT.languageOptions.find((o) => o.value === language)?.label ||
+      newT.languageOptions[0].label;
     const updated = { ...localPrefs, language, languageLabel };
     setLocalPrefs(updated);
     onAdjust({ language, languageLabel });

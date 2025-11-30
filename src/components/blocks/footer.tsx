@@ -6,7 +6,7 @@ import { BookOpen, Heart, Github, Twitter } from "lucide-react";
 
 export function Footer() {
   const pathname = usePathname();
-  
+
   // 在搜索页面使用简化的 Footer
   if (pathname === "/search") {
     return (
@@ -37,17 +37,17 @@ export function Footer() {
               用 AI 发现你的下一本好书。整合多个数据源，支持多种 AI 模型，让阅读发现更简单。
             </p>
             <div className="mt-4 flex gap-2">
-              <a 
-                href="https://github.com" 
-                target="_blank" 
+              <a
+                href="https://github.com"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
               >
                 <Github className="h-4 w-4" />
               </a>
-              <a 
-                href="https://twitter.com" 
-                target="_blank" 
+              <a
+                href="https://twitter.com"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
               >
@@ -77,22 +77,42 @@ export function Footer() {
             <h4 className="mb-4 text-sm font-semibold">数据源</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li>
-                <a href="https://book.douban.com" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                <a
+                  href="https://book.douban.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground"
+                >
                   豆瓣读书
                 </a>
               </li>
               <li>
-                <a href="https://books.google.com" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                <a
+                  href="https://books.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground"
+                >
                   Google Books
                 </a>
               </li>
               <li>
-                <a href="https://openlibrary.org" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                <a
+                  href="https://openlibrary.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground"
+                >
                   Open Library
                 </a>
               </li>
               <li>
-                <a href="https://archive.org" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                <a
+                  href="https://archive.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground"
+                >
                   Internet Archive
                 </a>
               </li>

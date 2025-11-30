@@ -178,7 +178,7 @@ async function searchWithRexxar(
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const ua = userAgents[attempt % userAgents.length];
-      
+
       const response = await fetch(`${DOUBAN_REXXAR_API}?${params.toString()}`, {
         headers: {
           "User-Agent": ua,
@@ -207,9 +207,7 @@ async function searchWithRexxar(
       }
 
       // 只保留书籍类型
-      const bookItems = data.subjects.items.filter(
-        (item) => item.target_type === "book"
-      );
+      const bookItems = data.subjects.items.filter((item) => item.target_type === "book");
 
       return bookItems.map(rexxarItemToBook);
     } catch (error) {
@@ -230,10 +228,7 @@ async function searchWithRexxar(
  * @param query 搜索关键词
  * @param maxResults 最大结果数
  */
-async function searchWithSuggest(
-  query: string,
-  maxResults: number
-): Promise<Book[]> {
+async function searchWithSuggest(query: string, maxResults: number): Promise<Book[]> {
   const params = new URLSearchParams({
     q: query,
   });
@@ -353,9 +348,7 @@ function generateQueryVariants(query: string): string[] {
   }
 
   // 分词后单独搜索
-  const words = query
-    .split(/\s+/)
-    .filter((w) => w.length >= 2 && !isModifierWord(w));
+  const words = query.split(/\s+/).filter((w) => w.length >= 2 && !isModifierWord(w));
   for (const word of words.slice(0, 2)) {
     if (!variants.includes(word)) {
       variants.push(word);
@@ -413,9 +406,7 @@ export async function getDoubanBookRating(
     const html = await response.text();
 
     // 从 HTML 中提取评分
-    const ratingMatch = html.match(
-      /<strong class="ll rating_num"[^>]*>([0-9.]+)<\/strong>/
-    );
+    const ratingMatch = html.match(/<strong class="ll rating_num"[^>]*>([0-9.]+)<\/strong>/);
     const countMatch = html.match(/<span property="v:votes">([0-9]+)<\/span>/);
 
     if (ratingMatch) {
@@ -445,10 +436,7 @@ export function isChineseQuery(query: string): boolean {
  * @param books 书籍列表
  * @param query 搜索关键词
  */
-export async function enrichBooksWithDouban(
-  books: Book[],
-  query: string
-): Promise<Book[]> {
+export async function enrichBooksWithDouban(books: Book[], query: string): Promise<Book[]> {
   // 只有中文查询才搜索豆瓣
   if (!isChineseQuery(query)) {
     return books;
@@ -461,8 +449,7 @@ export async function enrichBooksWithDouban(
     return books.map((book) => {
       // 在豆瓣结果中查找匹配的书籍
       const doubanMatch = doubanResult.books.find((db) => {
-        const titleMatch =
-          db.title.includes(book.title) || book.title.includes(db.title);
+        const titleMatch = db.title.includes(book.title) || book.title.includes(db.title);
         const authorMatch = book.authors.some((author) =>
           db.authors.some((da) => da.includes(author) || author.includes(da))
         );
