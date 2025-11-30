@@ -65,9 +65,12 @@ export async function searchGoogleBooks(
   filters?: SearchFilters,
   maxResults: number = 20
 ): Promise<SearchResult> {
+  // Google Books API 最大返回 40 条结果
+  const actualMaxResults = Math.min(maxResults, 40);
+
   const params = new URLSearchParams({
     q: query,
-    maxResults: maxResults.toString(),
+    maxResults: actualMaxResults.toString(),
     orderBy: filters?.orderBy || "relevance",
   });
 
@@ -80,9 +83,14 @@ export async function searchGoogleBooks(
     params.append("key", apiKey);
   }
 
-  const response = await fetch(`${GOOGLE_BOOKS_API_BASE}?${params.toString()}`);
+  const url = `${GOOGLE_BOOKS_API_BASE}?${params.toString()}`;
+  console.log(`[GoogleBooks] Fetching: ${url.substring(0, 100)}...`);
+
+  const response = await fetch(url);
 
   if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    console.error(`[GoogleBooks] API error ${response.status}: ${errorText.substring(0, 200)}`);
     throw new Error(`Google Books API error: ${response.status}`);
   }
 

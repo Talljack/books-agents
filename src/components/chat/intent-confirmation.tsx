@@ -32,17 +32,80 @@ interface IntentConfirmationProps {
   isLoading?: boolean;
 }
 
-const levelOptions = [
-  { value: "beginner", label: "入门", description: "零基础或刚开始学习" },
-  { value: "intermediate", label: "进阶", description: "有一定基础，想深入学习" },
-  { value: "advanced", label: "高级", description: "有丰富经验，想精通" },
-] as const;
+// 类型定义
+type LevelValue = "beginner" | "intermediate" | "advanced";
+type LanguageValue = "en" | "zh" | "any";
 
-const languageOptions = [
-  { value: "zh", label: "中文", description: "优先显示中文书籍" },
-  { value: "en", label: "英文", description: "优先显示英文书籍" },
-  { value: "any", label: "不限", description: "显示所有语言" },
-] as const;
+interface LevelOption {
+  value: LevelValue;
+  label: string;
+  description: string;
+}
+
+interface LanguageOption {
+  value: LanguageValue;
+  label: string;
+  description: string;
+}
+
+// 多语言配置
+const i18n: {
+  zh: {
+    levelOptions: LevelOption[];
+    languageOptions: LanguageOption[];
+    ui: Record<string, string>;
+  };
+  en: {
+    levelOptions: LevelOption[];
+    languageOptions: LanguageOption[];
+    ui: Record<string, string>;
+  };
+} = {
+  zh: {
+    levelOptions: [
+      { value: "beginner", label: "入门", description: "零基础或刚开始学习" },
+      { value: "intermediate", label: "进阶", description: "有一定基础，想深入学习" },
+      { value: "advanced", label: "高级", description: "有丰富经验，想精通" },
+    ],
+    languageOptions: [
+      { value: "zh", label: "中文", description: "优先显示中文书籍" },
+      { value: "en", label: "英文", description: "优先显示英文书籍" },
+      { value: "any", label: "不限", description: "显示所有语言" },
+    ],
+    ui: {
+      title: "我理解您的需求",
+      subtitle: "请确认或调整搜索条件",
+      cancel: "取消",
+      confirm: "确认搜索",
+      searching: "搜索中...",
+      books: "书籍",
+    },
+  },
+  en: {
+    levelOptions: [
+      { value: "beginner", label: "Beginner", description: "Zero or little experience" },
+      {
+        value: "intermediate",
+        label: "Intermediate",
+        description: "Some experience, want to go deeper",
+      },
+      { value: "advanced", label: "Advanced", description: "Experienced, want to master" },
+    ],
+    languageOptions: [
+      { value: "zh", label: "Chinese", description: "Prefer Chinese books" },
+      { value: "en", label: "English", description: "Prefer English books" },
+      { value: "any", label: "Any", description: "Show all languages" },
+    ],
+    ui: {
+      title: "I understand your needs",
+      subtitle: "Please confirm or adjust search criteria",
+      cancel: "Cancel",
+      confirm: "Confirm Search",
+      searching: "Searching...",
+      books: "books",
+    },
+  },
+};
 
 export function IntentConfirmation({
   preferences,
@@ -54,15 +117,25 @@ export function IntentConfirmation({
 }: IntentConfirmationProps) {
   const [localPrefs, setLocalPrefs] = useState(preferences);
 
+  // 根据当前语言选择对应的文案
+  const lang = localPrefs.language === "en" ? "en" : "zh";
+  const t = i18n[lang];
+  const levelOptions = t.levelOptions;
+  const languageOptions = t.languageOptions;
+
   const handleLevelChange = (level: typeof localPrefs.level) => {
-    const levelLabel = levelOptions.find((o) => o.value === level)?.label || "入门";
+    const levelLabel = levelOptions.find((o) => o.value === level)?.label || levelOptions[0].label;
     const updated = { ...localPrefs, level, levelLabel };
     setLocalPrefs(updated);
     onAdjust({ level, levelLabel });
   };
 
   const handleLanguageChange = (language: typeof localPrefs.language) => {
-    const languageLabel = languageOptions.find((o) => o.value === language)?.label || "中文";
+    const newLang = language === "en" ? "en" : "zh";
+    const newT = i18n[newLang];
+    const languageLabel =
+      newT.languageOptions.find((o) => o.value === language)?.label ||
+      newT.languageOptions[0].label;
     const updated = { ...localPrefs, language, languageLabel };
     setLocalPrefs(updated);
     onAdjust({ language, languageLabel });
@@ -83,8 +156,8 @@ export function IntentConfirmation({
           <Sparkles className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-medium">我理解您的需求</h3>
-          <p className="text-xs text-muted-foreground">请确认或调整搜索条件</p>
+          <h3 className="text-sm font-medium">{t.ui.title}</h3>
+          <p className="text-xs text-muted-foreground">{t.ui.subtitle}</p>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onCancel}>
           <X className="h-4 w-4" />
@@ -151,7 +224,7 @@ export function IntentConfirmation({
               )}
               disabled={isLoading}
             >
-              {languageOptions.find((o) => o.value === localPrefs.language)?.label}书籍
+              {languageOptions.find((o) => o.value === localPrefs.language)?.label} {t.ui.books}
               <ChevronDown className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -176,7 +249,7 @@ export function IntentConfirmation({
       {/* Action Buttons */}
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={isLoading}>
-          取消
+          {t.ui.cancel}
         </Button>
         <Button
           size="sm"
@@ -185,7 +258,7 @@ export function IntentConfirmation({
           className="gap-1"
         >
           <Search className="h-4 w-4" />
-          {isLoading ? "搜索中..." : "确认搜索"}
+          {isLoading ? t.ui.searching : t.ui.confirm}
         </Button>
       </div>
     </motion.div>
