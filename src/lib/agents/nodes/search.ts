@@ -3,6 +3,36 @@ import { searchGoogleBooks } from "@/lib/api/google-books";
 import { searchOpenLibrary } from "@/lib/api/open-library";
 import { searchDoubanBooks, isChineseQuery } from "@/lib/api/douban";
 
+// 简单的内存缓存（5分钟过期）
+const searchCache = new Map<string, { books: Book[]; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5分钟
+
+function getCachedResults(query: string): Book[] | null {
+  const cached = searchCache.get(query.toLowerCase().trim());
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log("[SearchNode] Cache hit for:", query);
+    return cached.books;
+  }
+  return null;
+}
+
+function setCachedResults(query: string, books: Book[]) {
+  searchCache.set(query.toLowerCase().trim(), {
+    books,
+    timestamp: Date.now(),
+  });
+  
+  // 清理过期缓存
+  if (searchCache.size > 100) {
+    const now = Date.now();
+    for (const [key, value] of searchCache.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        searchCache.delete(key);
+      }
+    }
+  }
+}
+
 /**
  * 检测书籍语言
  */
@@ -198,6 +228,25 @@ export async function searchNode(state: AgentState): Promise<Partial<AgentState>
   const { query, filters } = state;
 
   try {
+    const startTime = Date.now();
+    
+    // 检查缓存
+    const cachedBooks = getCachedResults(query);
+    if (cachedBooks && cachedBooks.length > 0) {
+      console.log(`[SearchNode] Returning ${cachedBooks.length} cached results`);
+      return {
+        books: cachedBooks,
+        messages: [
+          ...state.messages,
+          {
+            role: "assistant",
+            content: `Found ${cachedBooks.length} books matching "${query}" (cached)`,
+            timestamp: new Date(),
+          },
+        ],
+      };
+    }
+    
     const keywords = extractKeywords(query);
     const isChinese = isChineseQuery(query);
     const languagePreference: "zh" | "en" | "any" = isChinese ? "zh" : "any";
@@ -207,23 +256,63 @@ export async function searchNode(state: AgentState): Promise<Partial<AgentState>
     console.log("[SearchNode] Language:", languagePreference);
 
     // 根据语言偏好调整搜索策略
-    const searchPromises: Promise<{ books: Book[] }>[] = [];
+    const searchPromises: Promise<{ books: Book[]; source: string; time?: number }>[] = [];
 
     if (isChinese) {
       // 中文搜索：优先豆瓣
+      const doubanStart = Date.now();
       searchPromises.push(
-        searchDoubanBooks(query, 20).catch(() => ({ books: [] })),
-        searchGoogleBooks(query, filters, 10).catch(() => ({ books: [], totalItems: 0, query }))
+        searchDoubanBooks(query, 20)
+          .then((result) => ({ 
+            ...result, 
+            source: "douban",
+            time: Date.now() - doubanStart 
+          }))
+          .catch(() => ({ books: [], source: "douban" }))
+      );
+      
+      const googleStart = Date.now();
+      searchPromises.push(
+        searchGoogleBooks(query, filters, 10)
+          .then((result) => ({ 
+            ...result, 
+            source: "google",
+            time: Date.now() - googleStart 
+          }))
+          .catch(() => ({ books: [], totalItems: 0, query, source: "google" }))
       );
     } else {
       // 英文搜索：优先 Google Books
+      const googleStart = Date.now();
       searchPromises.push(
-        searchGoogleBooks(query, filters, 15).catch(() => ({ books: [], totalItems: 0, query })),
-        searchOpenLibrary(query, 10).catch(() => ({ books: [], totalItems: 0, query }))
+        searchGoogleBooks(query, filters, 15)
+          .then((result) => ({ 
+            ...result, 
+            source: "google",
+            time: Date.now() - googleStart 
+          }))
+          .catch(() => ({ books: [], totalItems: 0, query, source: "google" }))
+      );
+      
+      const openLibStart = Date.now();
+      searchPromises.push(
+        searchOpenLibrary(query, 10)
+          .then((result) => ({ 
+            ...result, 
+            source: "openlibrary",
+            time: Date.now() - openLibStart 
+          }))
+          .catch(() => ({ books: [], totalItems: 0, query, source: "openlibrary" }))
       );
     }
 
     const results = await Promise.all(searchPromises);
+    
+    // 性能日志
+    results.forEach(({ source, books, time }) => {
+      console.log(`[SearchNode] ${source}: ${books.length} books in ${time}ms`);
+    });
+    
     const allBooks = results.flatMap((r) => r.books);
 
     console.log("[SearchNode] Total books fetched:", allBooks.length);
@@ -245,7 +334,12 @@ export async function searchNode(state: AgentState): Promise<Partial<AgentState>
       .slice(0, 20)
       .map(({ book }) => book);
 
+    const totalTime = Date.now() - startTime;
     console.log("[SearchNode] Final results:", filteredBooks.length);
+    console.log(`[SearchNode] Total time: ${totalTime}ms`);
+
+    // 缓存结果
+    setCachedResults(query, filteredBooks);
 
     return {
       books: filteredBooks,
@@ -253,7 +347,7 @@ export async function searchNode(state: AgentState): Promise<Partial<AgentState>
         ...state.messages,
         {
           role: "assistant",
-          content: `Found ${filteredBooks.length} books matching "${query}"`,
+          content: `Found ${filteredBooks.length} books matching "${query}" (${totalTime}ms)`,
           timestamp: new Date(),
         },
       ],
