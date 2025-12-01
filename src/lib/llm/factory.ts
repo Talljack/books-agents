@@ -133,9 +133,20 @@ export function createLLM(config?: UserModelConfig): BaseChatModel {
  * 创建 Ollama LLM
  */
 function createOllamaLLM(config: UserModelConfig): BaseChatModel {
+  const baseUrl = config.ollamaHost || config.baseUrl || "http://localhost:11434";
+  
+  // 在 Vercel 等 serverless 环境中给出友好提示
+  if (process.env.VERCEL && baseUrl.includes("localhost")) {
+    console.warn(
+      "[LLM Factory] ⚠️ Ollama 无法在 Vercel 等 serverless 环境中运行。" +
+      "请在环境变量中配置云端 LLM 提供商（OpenAI、Anthropic、DeepSeek、OpenRouter 等），" +
+      "或在 Settings 页面配置。"
+    );
+  }
+  
   return new ChatOllama({
     model: config.model,
-    baseUrl: config.ollamaHost || config.baseUrl || "http://localhost:11434",
+    baseUrl,
     temperature: 0.7,
   });
 }
