@@ -22,7 +22,7 @@ function setCachedResults(query: string, books: Book[]) {
     books,
     timestamp: Date.now(),
   });
-  
+
   // 清理过期缓存
   if (searchCache.size > 100) {
     const now = Date.now();
@@ -62,41 +62,49 @@ function detectBookLanguage(book: Book): "zh" | "en" | "mixed" {
 async function extractKeywordsWithLLM(query: string): Promise<string[]> {
   try {
     const llm = createLLM();
-    
-    const prompt = `从用户的查询中提取用于图书搜索的关键词。
 
-用户查询: "${query}"
+    const prompt = `Extract search keywords from the user's book search query.
 
-要求:
-1. 提取最核心的主题词（如：AI、JavaScript、心理学）
-2. 去除无意义的词（如：我想、推荐、找、书籍）
-3. 保留重要的限定词（如：入门、高级、实战）
-4. 如果是中文查询，也提取对应的英文关键词
-5. 返回 JSON 格式: {"keywords": ["关键词1", "关键词2"]}
+User query: "${query}"
 
-示例:
-- "我想找一些AI热门书籍" → {"keywords": ["AI", "artificial intelligence"]}
-- "推荐JavaScript入门书" → {"keywords": ["JavaScript", "入门", "beginner"]}
-- "心理学经典著作" → {"keywords": ["心理学", "psychology", "经典", "classic"]}
+Requirements:
+1. Extract core topic keywords (e.g., AI, JavaScript, psychology, agent, LLM)
+2. Remove meaningless words (e.g., "I want", "recommend", "find", "book")
+3. Keep important qualifiers (e.g., "beginner", "advanced", "practical")
+4. For Chinese queries, also extract English equivalents
+5. For technical terms, keep both Chinese and English
+6. Return multiple related keywords to improve search coverage
 
-只返回 JSON，不要其他内容。`;
+Examples:
+- "我想找一些AI热门书籍" → {"keywords": ["AI", "artificial intelligence", "machine learning"]}
+- "推荐JavaScript入门书" → {"keywords": ["JavaScript", "beginner", "入门", "tutorial"]}
+- "AI agent相关的技术书籍" → {"keywords": ["AI agent", "artificial intelligence", "autonomous agent", "LLM", "multi-agent"]}
 
-    const response = await llm.invoke([
-      { role: "user", content: prompt }
-    ]);
-    
+Return ONLY JSON format: {"keywords": ["keyword1", "keyword2", ...]}`;
+
+    const response = await llm.invoke([{ role: "user", content: prompt }]);
+
     const content = response.content.toString().trim();
+    console.log("[LLM] Raw response:", content);
+
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    
+
     if (jsonMatch) {
       const result = JSON.parse(jsonMatch[0]);
       const keywords = result.keywords || [];
       console.log("[LLM] Extracted keywords:", keywords);
+
+      // 如果 LLM 返回的关键词太少，补充原始查询中的关键词
+      if (keywords.length === 0) {
+        console.warn("[LLM] No keywords extracted, using fallback");
+        return fallbackExtractKeywords(query);
+      }
+
       return keywords;
     }
-    
+
     // 降级：简单分词
-    console.warn("[LLM] Failed to parse, fallback to simple extraction");
+    console.warn("[LLM] Failed to parse JSON, fallback to simple extraction");
     return fallbackExtractKeywords(query);
   } catch (error) {
     console.error("[LLM] Keyword extraction failed:", error);
@@ -109,18 +117,61 @@ async function extractKeywordsWithLLM(query: string): Promise<string[]> {
  */
 function fallbackExtractKeywords(query: string): string[] {
   const stopWords = new Set([
-    "的", "是", "了", "在", "和", "与", "或", "有", "这", "那",
-    "什么", "怎么", "如何", "一些", "一本", "几本", "推荐", "书籍", "书",
-    "好", "最", "想", "找", "要", "我", "给", "帮", "请", "能", "可以",
-    "the", "a", "an", "is", "are", "of", "to", "in", "for", "on",
-    "with", "about", "book", "books", "recommend", "want", "find", "some",
+    "的",
+    "是",
+    "了",
+    "在",
+    "和",
+    "与",
+    "或",
+    "有",
+    "这",
+    "那",
+    "什么",
+    "怎么",
+    "如何",
+    "一些",
+    "一本",
+    "几本",
+    "推荐",
+    "书籍",
+    "书",
+    "好",
+    "最",
+    "想",
+    "找",
+    "要",
+    "我",
+    "给",
+    "帮",
+    "请",
+    "能",
+    "可以",
+    "the",
+    "a",
+    "an",
+    "is",
+    "are",
+    "of",
+    "to",
+    "in",
+    "for",
+    "on",
+    "with",
+    "about",
+    "book",
+    "books",
+    "recommend",
+    "want",
+    "find",
+    "some",
   ]);
 
   const words = query
     .toLowerCase()
     .replace(/[，。！？、；：""''（）【】《》]/g, " ")
     .split(/\s+/)
-    .filter(w => w.length >= 2 && !stopWords.has(w));
+    .filter((w) => w.length >= 2 && !stopWords.has(w));
 
   return [...new Set(words)];
 }
@@ -177,7 +228,7 @@ function calculateRelevanceScore(
   if (titleMatchCount === 0 && descMatchCount === 0) {
     return -1000; // 完全不相关的书直接过滤
   }
-  
+
   // 标题无匹配但描述有匹配，降低分数
   if (titleMatchCount === 0 && descMatchCount > 0) {
     score -= 30;
@@ -205,30 +256,30 @@ function calculateRelevanceScore(
  */
 function isValidBook(book: Book): boolean {
   const title = book.title || "";
-  
+
   // 1. 检查乱码：问号比例过高
   const questionMarkRatio = (title.match(/\?/g) || []).length / Math.max(title.length, 1);
   if (questionMarkRatio > 0.3) {
     console.log(`[Filter] Rejected (garbled): ${title}`);
     return false;
   }
-  
+
   // 2. 标题太短
   if (title.trim().length < 2) {
     console.log(`[Filter] Rejected (too short): ${title}`);
     return false;
   }
-  
+
   // 3. 检查是否有基本的书籍信息
   const hasBasicInfo = book.authors?.length > 0 || book.publisher || book.publishedDate;
   const hasContent = book.description || book.pageCount;
-  
+
   // 如果既没有基本信息也没有内容，可能是低质量数据
   if (!hasBasicInfo && !hasContent) {
     console.log(`[Filter] Rejected (no metadata): ${title}`);
     return false;
   }
-  
+
   return true;
 }
 
@@ -243,7 +294,7 @@ function deduplicateBooks(books: Book[]): Book[] {
     if (!isValidBook(book)) {
       continue;
     }
-    
+
     const normalizedTitle = book.title
       .toLowerCase()
       .replace(/[（(][^）)]*[）)]/g, "")
@@ -278,7 +329,7 @@ export async function searchNode(state: AgentState): Promise<Partial<AgentState>
 
   try {
     const startTime = Date.now();
-    
+
     // 检查缓存
     const cachedBooks = getCachedResults(query);
     if (cachedBooks && cachedBooks.length > 0) {
@@ -295,74 +346,110 @@ export async function searchNode(state: AgentState): Promise<Partial<AgentState>
         ],
       };
     }
-    
+
     // 使用 LLM 提取关键词
     const keywords = await extractKeywordsWithLLM(query);
-    const isChinese = isChineseQuery(query);
-    const languagePreference: "zh" | "en" | "any" = isChinese ? "zh" : "any";
+
+    // 优先使用用户选择的语言过滤，否则自动检测
+    let languagePreference: "zh" | "en" | "any";
+    if (filters?.language) {
+      languagePreference = filters.language as "zh" | "en" | "any";
+      console.log("[SearchNode] User selected language:", languagePreference);
+    } else {
+      const isChinese = isChineseQuery(query);
+      languagePreference = isChinese ? "zh" : "any";
+      console.log("[SearchNode] Auto-detected language:", languagePreference);
+    }
 
     console.log("[SearchNode] Query:", query);
     console.log("[SearchNode] Keywords:", keywords);
-    console.log("[SearchNode] Language:", languagePreference);
+    console.log("[SearchNode] Language preference:", languagePreference);
+    console.log("[SearchNode] Filters:", filters);
 
     // 根据语言偏好调整搜索策略
     const searchPromises: Promise<{ books: Book[]; source: string; time?: number }>[] = [];
 
-    if (isChinese) {
-      // 中文搜索：优先豆瓣
+    if (languagePreference === "zh") {
+      // 中文书籍：优先豆瓣
+      console.log("[SearchNode] Searching Chinese books...");
       const doubanStart = Date.now();
       searchPromises.push(
         searchDoubanBooks(query, 20)
-          .then((result) => ({ 
-            ...result, 
+          .then((result) => ({
+            ...result,
             source: "douban",
-            time: Date.now() - doubanStart 
+            time: Date.now() - doubanStart,
           }))
           .catch(() => ({ books: [], source: "douban" }))
       );
-      
+
       const googleStart = Date.now();
       searchPromises.push(
         searchGoogleBooks(query, filters, 10)
-          .then((result) => ({ 
-            ...result, 
+          .then((result) => ({
+            ...result,
             source: "google",
-            time: Date.now() - googleStart 
+            time: Date.now() - googleStart,
           }))
           .catch(() => ({ books: [], totalItems: 0, query, source: "google" }))
       );
+    } else if (languagePreference === "en") {
+      // 英文书籍：只搜索英文源
+      console.log("[SearchNode] Searching English books only...");
+      const googleStart = Date.now();
+      searchPromises.push(
+        searchGoogleBooks(query, filters, 20)
+          .then((result) => ({
+            ...result,
+            source: "google",
+            time: Date.now() - googleStart,
+          }))
+          .catch(() => ({ books: [], totalItems: 0, query, source: "google" }))
+      );
+
+      const openLibStart = Date.now();
+      searchPromises.push(
+        searchOpenLibrary(query, 15)
+          .then((result) => ({
+            ...result,
+            source: "openlibrary",
+            time: Date.now() - openLibStart,
+          }))
+          .catch(() => ({ books: [], totalItems: 0, query, source: "openlibrary" }))
+      );
     } else {
-      // 英文搜索：优先 Google Books
+      // 任意语言：搜索所有源
+      console.log("[SearchNode] Searching all languages...");
       const googleStart = Date.now();
       searchPromises.push(
         searchGoogleBooks(query, filters, 15)
-          .then((result) => ({ 
-            ...result, 
+          .then((result) => ({
+            ...result,
             source: "google",
-            time: Date.now() - googleStart 
+            time: Date.now() - googleStart,
           }))
           .catch(() => ({ books: [], totalItems: 0, query, source: "google" }))
       );
-      
+
       const openLibStart = Date.now();
       searchPromises.push(
         searchOpenLibrary(query, 10)
-          .then((result) => ({ 
-            ...result, 
+          .then((result) => ({
+            ...result,
             source: "openlibrary",
-            time: Date.now() - openLibStart 
+            time: Date.now() - openLibStart,
           }))
           .catch(() => ({ books: [], totalItems: 0, query, source: "openlibrary" }))
       );
     }
 
     const results = await Promise.all(searchPromises);
-    
+
     // 性能日志
     results.forEach(({ source, books, time }) => {
       console.log(`[SearchNode] ${source}: ${books.length} books in ${time}ms`);
     });
-    
+
     const allBooks = results.flatMap((r) => r.books);
 
     console.log("[SearchNode] Total books fetched:", allBooks.length);

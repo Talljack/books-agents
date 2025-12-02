@@ -1,0 +1,193 @@
+---
+description: BookFinder AI 开发规则 - 开发流程、代码规范、测试要求
+globs: 
+alwaysApply: true
+---
+
+# Development Rules - 开发规则
+
+## 开发流程规范
+
+> ⚠️ **强制要求**: 所有开发工作必须严格遵循以下流程。
+
+### 1. 开发前准备
+
+#### Step 1: 拉取 main 分支最新代码
+
+```bash
+# 切换到 main 分支
+git checkout main
+
+# 拉取远程最新代码
+git pull origin main
+
+# 确保依赖是最新的
+pnpm install
+```
+
+#### Step 2: 创建功能分支
+
+分支命名规范：
+- `feature/xxx` - 新功能
+- `fix/xxx` - Bug 修复
+- `refactor/xxx` - 代码重构
+- `docs/xxx` - 文档更新
+- `chore/xxx` - 构建/配置等杂项
+
+```bash
+# 从 main 分支创建新分支
+git checkout -b feature/your-feature-name
+```
+
+---
+
+## 开发注意事项
+
+### 代码规范
+
+- ✅ TypeScript 严格模式 - 不允许 `any` 类型
+- ✅ ESLint 规则通过 - 运行 `pnpm lint`
+- ✅ Prettier 格式化 - 运行 `pnpm format`
+- ✅ 类型检查通过 - 运行 `pnpm type-check`
+- ✅ 组件使用 shadcn/ui 规范
+- ✅ API 路由遵循 RESTful 规范
+- ✅ 新增依赖需要说明原因
+
+### LangGraph Agent 开发规范
+
+1. **状态设计**: 使用 `Annotation` 定义状态类型，明确 reducer 和 default
+2. **节点设计**: 单一职责，返回 `Partial<State>`，添加详细日志
+3. **工具定义**: 使用 Zod schema，提供清晰 description，处理错误
+
+### 前端开发规范
+
+1. **组件开发**: 使用 `"use client"` 标记客户端组件，Props 定义接口
+2. **状态管理**: 优先 hooks，复杂状态用 useReducer
+3. **样式规范**: 使用 Tailwind CSS，支持 dark/light 主题
+
+---
+
+## 测试流程
+
+### Step 1: 本地静态检查
+
+```bash
+pnpm lint          # ESLint 检查
+pnpm lint:fix      # 自动修复
+pnpm type-check    # TypeScript 类型检查
+pnpm format        # 代码格式化
+```
+
+### Step 2: 启动开发服务器
+
+```bash
+pnpm dev           # http://localhost:3000
+```
+
+### Step 3: Chrome DevTools 功能测试 (必须)
+
+> ⚠️ **强制要求**: 所有功能开发完成后，必须使用 Chrome DevTools 进行完整的功能测试，测试通过后才能提交代码。
+
+#### Network 面板
+- [ ] 检查 API 请求是否正确发送
+- [ ] 验证请求/响应数据格式
+- [ ] 确认无 4xx/5xx 错误
+- [ ] 检查请求耗时是否合理
+
+#### Console 面板
+- [ ] 无 JavaScript 错误
+- [ ] 无未处理的 Promise rejection
+- [ ] 无 React 警告信息
+- [ ] 检查 Agent 日志输出正确
+
+#### Elements 面板
+- [ ] 检查 DOM 结构是否正确
+- [ ] 验证 CSS 样式是否符合设计
+- [ ] 确认响应式布局正常
+
+#### Application 面板
+- [ ] 检查 sessionStorage 数据正确
+- [ ] 验证 localStorage 配置正确
+
+---
+
+## 提交代码
+
+### Commit 规范 (Conventional Commits)
+
+```bash
+# 格式
+<type>(<scope>): <description>
+
+# 类型
+feat:     新功能
+fix:      Bug 修复
+docs:     文档更新
+style:    代码格式
+refactor: 代码重构
+perf:     性能优化
+test:     测试相关
+chore:    构建/配置
+
+# 示例
+git commit -m "feat(search): add book filter by language"
+git commit -m "fix(agent): handle empty search results"
+```
+
+### 提交前检查清单
+
+- [ ] `pnpm lint` 通过
+- [ ] `pnpm type-check` 通过
+- [ ] Chrome DevTools 功能测试通过
+- [ ] 提交信息符合规范
+
+```bash
+git add .
+git commit -m "feat(xxx): your message"
+git push origin feature/your-feature-name
+```
+
+---
+
+## 创建 Pull Request
+
+### PR 标题格式
+
+```
+[类型] 简短描述
+
+# 示例
+[Feature] 添加书籍语言筛选功能
+[Fix] 修复搜索结果分页问题
+```
+
+### PR 必须包含
+
+1. 变更说明
+2. 测试情况确认
+   - 本地 lint 检查通过
+   - TypeScript 类型检查通过
+   - Chrome DevTools 功能测试通过
+3. 相关截图（如适用）
+
+---
+
+## 常用命令速查
+
+```bash
+# 开发
+pnpm dev              # 启动开发服务器
+pnpm build            # 构建生产版本
+
+# 代码质量
+pnpm lint             # ESLint 检查
+pnpm lint:fix         # 自动修复
+pnpm format           # 格式化
+pnpm type-check       # 类型检查
+
+# Git 工作流
+git checkout main && git pull                    # 更新 main
+git checkout -b feature/xxx                      # 创建分支
+git add . && git commit -m "feat: xxx"          # 提交
+git push origin feature/xxx                      # 推送
+```
